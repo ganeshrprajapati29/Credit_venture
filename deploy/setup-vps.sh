@@ -68,6 +68,7 @@ log "Installing backend dependencies"
 cd "$REPO_DIR/backend"
 npm ci --omit=dev
 
+ADMIN_LOGIN_EMAIL="${ADMIN_LOGIN_EMAIL:-admin@${ADMIN_DOMAIN#admin.}}"
 if [ ! -f .env ]; then
   log "Creating backend/.env with fresh secrets"
   ADMIN_PASSWORD="$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-16)@Cv1"
@@ -83,12 +84,12 @@ CORS_ORIGINS=https://${ADMIN_DOMAIN},http://${ADMIN_DOMAIN}
 UPLOAD_DIR=${UPLOAD_DIR}
 MAX_UPLOAD_MB=8
 ADMIN_NAME=Super Admin
-ADMIN_EMAIL=admin@${ADMIN_DOMAIN#admin.}
+ADMIN_EMAIL=${ADMIN_LOGIN_EMAIL}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 ENV
   chmod 600 .env
   chown "$APP_USER":"$APP_USER" .env
-  echo "  First admin login: admin@${ADMIN_DOMAIN#admin.} / ${ADMIN_PASSWORD}"
+  echo "  First admin login: ${ADMIN_LOGIN_EMAIL} / ${ADMIN_PASSWORD}"
   echo "  (saved in backend/.env – change it after first login)"
 fi
 
@@ -110,7 +111,7 @@ systemctl reload nginx
 log "Starting API with PM2"
 cd "$REPO_DIR"
 chown -R "$APP_USER":"$APP_USER" "$REPO_DIR/backend"
-APP_UID="$APP_USER" APP_DIR="$REPO_DIR/backend" LOG_DIR="$APP_ROOT/logs" pm2 start deploy/ecosystem.config.js --env production
+APP_UID="$APP_USER" APP_DIR="$REPO_DIR/backend" LOG_DIR="$APP_ROOT/logs" pm2 startOrReload deploy/ecosystem.config.js --env production
 pm2 save
 pm2 startup systemd -u root --hp /root >/dev/null
 
