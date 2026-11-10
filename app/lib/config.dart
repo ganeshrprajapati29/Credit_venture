@@ -5,7 +5,7 @@
 class AppConfig {
   static const String apiUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://api.creditventures.in/api/v1',
+    defaultValue: 'https://api.72.60.41.224.sslip.io/api/v1',
   );
 
   static const String appName = 'Credit Ventures';
