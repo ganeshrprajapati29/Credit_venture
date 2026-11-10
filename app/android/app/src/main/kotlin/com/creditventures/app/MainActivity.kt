@@ -1,4 +1,4 @@
-package `in`.creditventures.credit_ventures
+package com.creditventures.app
 
 import io.flutter.embedding.android.FlutterActivity
 
