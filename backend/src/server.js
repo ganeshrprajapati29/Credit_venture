@@ -2,12 +2,13 @@ const env = require('./config/env');
 const { connectDB } = require('./config/db');
 const app = require('./app');
 const Setting = require('./models/Setting');
-const { ensureSuperAdmin } = require('./scripts/seed');
+const { ensureSuperAdmin, seedBanners } = require('./scripts/seed');
 
 async function start() {
   await connectDB();
   await Setting.get(); // create default settings on first boot
-  await ensureSuperAdmin();
+  const firstInstall = await ensureSuperAdmin();
+  if (firstInstall) await seedBanners(); // default home-screen banners on a fresh install only
   const server = app.listen(env.port, () => console.log(`[api] Credit Ventures API listening on :${env.port} (${env.nodeEnv})`));
 
   const shutdown = (sig) => {

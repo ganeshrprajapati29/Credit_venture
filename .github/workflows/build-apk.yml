@@ -1,0 +1,98 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend API URL baked into the app (e.g. https://api.yourdomain.com/api/v1)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      # Priority: manual input -> repository variable API_URL -> default in lib/config.dart
+      API_URL: ${{ github.event.inputs.api_url || vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.9
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Configure release signing (optional)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+            cat > android/key.properties <<PROPS
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=release.jks
+          PROPS
+            echo "Release keystore configured"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret – APK will be signed with a debug key"
+          fi
+
+      - name: Build APK
+        run: |
+          DEFINE=""
+          if [ -n "$API_URL" ]; then DEFINE="--dart-define=API_URL=$API_URL"; fi
+          echo "API_URL=${API_URL:-<default from lib/config.dart>}"
+          flutter build apk --release $DEFINE
+
+      - name: Rename APK
+        id: apk
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          NAME="CreditVentures-v${VERSION}-build${GITHUB_RUN_NUMBER}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: credit-ventures-apk
+          path: app/${{ steps.apk.outputs.name }}
+          retention-days: 30
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v${{ steps.apk.outputs.version }}-${{ github.run_number }}
+          name: Credit Ventures APK v${{ steps.apk.outputs.version }} (build ${{ github.run_number }})
+          body: |
+            Android APK built from ${{ github.sha }}.
+            API URL: ${{ env.API_URL || 'default (lib/config.dart)' }}
+          files: app/${{ steps.apk.outputs.name }}
