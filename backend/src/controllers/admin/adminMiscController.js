@@ -98,6 +98,8 @@ const EDITABLE = [
   'maintenanceMode',
   'maintenanceMessage',
   'options',
+  'otpMode',
+  'loanProducts',
 ];
 
 exports.getSettings = asyncHandler(async (_req, res) => ok(res, { settings: await Setting.get() }));
@@ -119,8 +121,46 @@ exports.updateSettings = asyncHandler(async (req, res) => {
     });
     body.options = { ...s.options, ...clean };
   }
+  if (body.otpMode && !['demo', 'sms'].includes(body.otpMode)) throw ApiError.badRequest('Invalid OTP mode');
+  if (body.loanProducts) {
+    if (!Array.isArray(body.loanProducts) || !body.loanProducts.length) throw ApiError.badRequest('Add at least one loan product');
+    const { ALL_STEPS } = require('../../config/products');
+    body.loanProducts = body.loanProducts.map((p) => {
+      if (!p.key || !p.name) throw ApiError.badRequest('Every loan product needs a key and name');
+      const num = (v, d) => (v === '' || v === undefined || v === null || Number.isNaN(Number(v)) ? d : Number(v));
+      const tenures = [...new Set((p.tenureOptions || []).map(Number).filter((n) => n > 0 && n <= 480))].sort((a, b) => a - b);
+      if (!tenures.length) throw ApiError.badRequest(`${p.name}: add at least one tenure`);
+      const minA = num(p.minAmount, 1000);
+      const maxA = num(p.maxAmount, minA);
+      if (maxA < minA) throw ApiError.badRequest(`${p.name}: max amount must be more than min amount`);
+      let steps = (p.steps || []).filter((x) => ALL_STEPS.includes(x));
+      ['basic', 'offer', 'kyc', 'bank', 'review'].forEach((req) => {
+        if (!steps.includes(req)) throw ApiError.badRequest(`${p.name}: step "${req}" is required`);
+      });
+      steps = ALL_STEPS.filter((x) => steps.includes(x)); // keep canonical order
+      const fields = (p.fields || []).filter((f) => f && f.key && f.label);
+      if (steps.includes('product') && !fields.length) steps = steps.filter((x) => x !== 'product');
+      return {
+        ...p,
+        active: p.active !== false,
+        order: num(p.order, 0),
+        minAmount: minA,
+        maxAmount: maxA,
+        amountStep: num(p.amountStep, 1000),
+        incomeMultiplier: num(p.incomeMultiplier, 1),
+        minMonthlyIncome: num(p.minMonthlyIncome, 0),
+        interestRate: num(p.interestRate, 0),
+        processingFeePercent: num(p.processingFeePercent, 0),
+        tenureOptions: tenures,
+        steps,
+        fields,
+      };
+    });
+    if (!body.loanProducts.some((p) => p.active)) throw ApiError.badRequest('Keep at least one loan product active');
+  }
   Object.entries(body).forEach(([k, v]) => s.set(k, v));
   if (body.options) s.markModified('options');
+  if (body.loanProducts) s.markModified('loanProducts');
   await s.save();
   ok(res, { settings: s }, 'Settings saved');
 });

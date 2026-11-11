@@ -1,12 +1,16 @@
 import 'dart:io';
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 
 import '../core/api.dart';
+import '../core/app_state.dart';
 import '../theme.dart';
 
 void showSnack(BuildContext context, String msg, {bool error = false}) {
@@ -62,8 +66,8 @@ class BottomAction extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 20, offset: Offset(0, -4))],
+        color: AppColors.bg,
+        border: Border(top: BorderSide(color: Color(0x14000000))),
       ),
       child: child,
     );
@@ -187,7 +191,7 @@ Future<String?> showOptionSheet(BuildContext context, {required String title, re
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: AppColors.bg,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (ctx) => _OptionSheet(title: title, options: options, selected: selected),
   );
@@ -331,18 +335,35 @@ class SectionCard extends StatelessWidget {
 class StepScaffold extends StatelessWidget {
   final String title;
   final String? subtitle;
-  final int step;
-  final int totalSteps;
+  final String stepKey; // basic, offer, personal, product, employment, address, kyc, bank, review
+  final String? productKey; // used before the loan exists (basic step)
   final Widget body;
   final Widget? bottom;
-  const StepScaffold({super.key, required this.title, this.subtitle, required this.step, this.totalSteps = 7, required this.body, this.bottom});
+  const StepScaffold({super.key, required this.title, this.subtitle, required this.stepKey, this.productKey, required this.body, this.bottom});
+
+  static const defaultSteps = ['basic', 'offer', 'personal', 'employment', 'address', 'kyc', 'bank', 'review'];
+
+  /// Steps of the application in progress (loan) or of the chosen product.
+  static List<String> stepsFor(AppState s, [String? productKey]) {
+    final loan = s.loan;
+    if (loan != null && loan['status'] == 'draft' && (productKey == null || loan['product'] == productKey)) {
+      final l = List<String>.from(loan['steps'] ?? const []);
+      if (l.isNotEmpty) return l;
+    }
+    final p = s.product(productKey ?? loan?['product']);
+    final ps = List<String>.from(p?['steps'] ?? const []);
+    return ps.isNotEmpty ? ps : defaultSteps;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final steps = stepsFor(context.watch<AppState>(), productKey);
+    final step = max(1, steps.indexOf(stepKey) + 1);
+    final totalSteps = steps.length;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.bg,
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.maybePop(context)),
         actions: [
           Padding(
@@ -355,7 +376,7 @@ class StepScaffold extends StatelessWidget {
           child: LinearProgressIndicator(
             value: step / totalSteps,
             minHeight: 4,
-            backgroundColor: const Color(0xFFEDEFF7),
+            backgroundColor: const Color(0xFFE4DDEE),
             valueColor: const AlwaysStoppedAnimation(AppColors.accent),
           ),
         ),
@@ -615,4 +636,39 @@ class UpperCaseFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) =>
       newValue.copyWith(text: newValue.text.toUpperCase());
+}
+
+/* ------------------------------------------------------------------ loan categories */
+
+IconData productIcon(String? key) => switch (key) {
+      'business' => Icons.storefront_rounded,
+      'home' => Icons.home_work_rounded,
+      'gold' => Icons.diamond_rounded,
+      'vehicle' => Icons.two_wheeler_rounded,
+      'education' => Icons.school_rounded,
+      _ => Icons.account_balance_wallet_rounded,
+    };
+
+Color productColor(Map<String, dynamic>? p) {
+  final v = int.tryParse('${p?['color'] ?? ''}'.replaceFirst('#', ''), radix: 16);
+  return v == null ? AppColors.primary : Color(0xFF000000 | v);
+}
+
+/// Small pill showing the chosen loan category.
+class ProductChip extends StatelessWidget {
+  final Map<String, dynamic> product;
+  const ProductChip({super.key, required this.product});
+  @override
+  Widget build(BuildContext context) {
+    final c = productColor(product);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(30)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(productIcon('${product['key']}'), size: 16, color: c),
+        const SizedBox(width: 6),
+        Text('${product['name']}', style: TextStyle(color: c, fontWeight: FontWeight.w800, fontSize: 13)),
+      ]),
+    );
+  }
 }

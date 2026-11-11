@@ -80,9 +80,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(22)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Amount due', style: TextStyle(color: Color(0xFFC3CBFD))),
+              const Text('Amount due', style: TextStyle(color: AppColors.onHeroMuted)),
               Text(inr(widget.installment['amount']), style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800)),
-              Text('Due on ${fmtDate(widget.installment['dueDate'])} · Loan ${widget.loan['loanNumber']}', style: const TextStyle(color: Color(0xFFDFE4FF))),
+              Text('Due on ${fmtDate(widget.installment['dueDate'])} · Loan ${widget.loan['loanNumber']}', style: const TextStyle(color: AppColors.onHeroSoft)),
             ]),
           ),
           const SizedBox(height: 18),

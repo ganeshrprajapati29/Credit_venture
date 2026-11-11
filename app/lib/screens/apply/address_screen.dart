@@ -79,8 +79,7 @@ class _AddressScreenState extends State<AddressScreen> {
       child: StepScaffold(
         title: 'Current address',
         subtitle: 'Where do you live right now?',
-        step: 5,
-        totalSteps: ApplyFlow.totalSteps,
+        stepKey: 'address',
         bottom: PrimaryButton(label: 'Continue', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: _submit),
         body: Column(children: [
           AppField(controller: line1, label: 'House / Flat no., Building, Street', caps: TextCapitalization.words, validator: (v) => Validators.required(v, 'Address')),

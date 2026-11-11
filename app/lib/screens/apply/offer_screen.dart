@@ -121,8 +121,7 @@ class _OfferScreenState extends State<OfferScreen> {
     return StepScaffold(
       title: 'Your loan offer',
       subtitle: 'Choose the amount and EMI that suits you',
-      step: 2,
-      totalSteps: ApplyFlow.totalSteps,
+      stepKey: 'offer',
       bottom: PrimaryButton(label: 'Confirm and proceed', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: quote == null ? null : _confirm),
       body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -130,7 +129,7 @@ class _OfferScreenState extends State<OfferScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(24)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Choose your loan amount', style: TextStyle(color: Color(0xFFC3CBFD), fontWeight: FontWeight.w600)),
+            const Text('Choose your loan amount', style: TextStyle(color: AppColors.onHeroMuted, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(inr(amount.round()), style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1)),
             SliderTheme(
@@ -150,9 +149,9 @@ class _OfferScreenState extends State<OfferScreen> {
               ),
             ),
             Row(children: [
-              Text('Min ${inr(minA)}', style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 12.5)),
+              Text('Min ${inr(minA)}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
               const Spacer(),
-              Text('Max ${inr(maxA)}', style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 12.5)),
+              Text('Max ${inr(maxA)}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
             ]),
           ]),
         ),
@@ -183,7 +182,7 @@ class _OfferScreenState extends State<OfferScreen> {
                 child: Row(children: [
                   Icon(tenure == t['months'] ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: tenure == t['months'] ? AppColors.primaryDeep : AppColors.textMuted),
                   const SizedBox(width: 12),
-                  Expanded(child: Text('${t['months']} months', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+                  Expanded(child: Text(fmtTenure(t['months']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
                   Text(inr(t['emi']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                 ]),
               ),

@@ -9,7 +9,6 @@ import '../../core/format.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../legal_screen.dart';
-import 'flow.dart';
 import 'submitted_screen.dart';
 
 /// Key Fact Statement + loan agreement e-sign (typed name) + final submit.
@@ -73,8 +72,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     return StepScaffold(
       title: 'Review & sign',
       subtitle: 'Please check your loan details before signing',
-      step: 8,
-      totalSteps: ApplyFlow.totalSteps,
+      stepKey: 'review',
       bottom: PrimaryButton(label: 'Sign & submit application', icon: Icons.draw_rounded, loading: busy, onPressed: _submit),
       body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -84,12 +82,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
           child: Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Loan amount', style: TextStyle(color: Color(0xFFC3CBFD))),
+                const Text('Loan amount', style: TextStyle(color: AppColors.onHeroMuted)),
                 Text(inr(o['amount']), style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
               ]),
             ),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('${o['tenureMonths']} months', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              Text(fmtTenure(o['tenureMonths']), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               Text('EMI ${inr(o['emi'])}', style: const TextStyle(color: Color(0xFF6EE7B7), fontWeight: FontWeight.w800, fontSize: 16)),
             ]),
           ]),
@@ -122,7 +120,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
             KeyValueRow('Date of birth', fmtDate(b['dob'])),
             KeyValueRow('PAN', '${dig(l, 'kyc.panNumber') ?? '—'}'),
             KeyValueRow('Aadhaar', '${dig(l, 'kyc.aadhaarNumber') ?? '—'}'),
-            KeyValueRow('Company', '${dig(l, 'employment.companyName') ?? '—'}'),
+            KeyValueRow('Loan type', '${l['productName'] ?? 'Personal Loan'}'),
+            if (dig(l, 'employment.companyName') != null) KeyValueRow('Company', '${dig(l, 'employment.companyName')}'),
+            for (final f in List<Map<String, dynamic>>.from(s.product('${l['product']}')?['fields'] ?? const []))
+              if (dig(l, 'productDetails.${f['key']}') != null)
+                KeyValueRow('${f['label']}'.replaceAll(RegExp(r'\s*\(.*\)$'), ''), f['label'].toString().contains('₹') ? inr(asNum(dig(l, 'productDetails.${f['key']}'))) : '${dig(l, 'productDetails.${f['key']}')}'),
             KeyValueRow('City', '${dig(l, 'address.city') ?? '—'}'),
             KeyValueRow('Bank', '${bank['bankName'] ?? ''} · XXXX${acc.length > 4 ? acc.substring(acc.length - 4) : acc}'),
             KeyValueRow('IFSC', '${bank['ifsc'] ?? ''}'),
@@ -134,7 +136,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         SectionCard(
           color: const Color(0xFFF8FAFC),
           child: Text(
-            'I, ${b['firstName']} ${b['lastName']}, apply for a personal loan of ${inr(o['amount'])} repayable in ${o['tenureMonths']} monthly instalments of ${inr(o['emi'])} at ${o['interestRate']}% p.a. on reducing balance. '
+            'I, ${b['firstName']} ${b['lastName']}, apply for a ${(l['productName'] ?? 'personal loan').toString().toLowerCase()} of ${inr(o['amount'])} repayable in ${o['tenureMonths']} monthly instalments of ${inr(o['emi'])} at ${o['interestRate']}% p.a. on reducing balance. '
             'I confirm that all information and documents provided by me are true and belong to me. I authorise ${s.settings['companyName'] ?? 'Credit Ventures'} and its lending partner to verify them, obtain my credit report, and disburse the loan only to my bank account listed above. '
             'I understand the final sanction is subject to verification, that I may cancel within the cooling-off period by repaying the principal and proportionate interest, and that delayed payments may attract charges as per the agreement and be reported to credit bureaus.',
             style: const TextStyle(fontSize: 13, height: 1.6, color: Color(0xFF334155)),

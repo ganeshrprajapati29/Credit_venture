@@ -34,7 +34,7 @@ class HelpScreen extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('We are here to help', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text('${sp['hours'] ?? ''}', style: const TextStyle(color: Color(0xFFC3CBFD))),
+            Text('${sp['hours'] ?? ''}', style: const TextStyle(color: AppColors.onHeroMuted)),
             const SizedBox(height: 16),
             Row(children: [
               if (phone.isNotEmpty) _btn(Icons.call_rounded, 'Call', () => launchUrl(Uri.parse('tel:$phone'))),

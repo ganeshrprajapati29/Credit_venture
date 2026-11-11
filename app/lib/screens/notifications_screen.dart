@@ -77,7 +77,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           final n = items![i];
                           final unread = n['read'] != true;
                           return SectionCard(
-                            color: unread ? const Color(0xFFF7F8FF) : Colors.white,
+                            color: unread ? const Color(0xFFF4FAF7) : Colors.white,
                             padding: const EdgeInsets.all(14),
                             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               CircleAvatar(backgroundColor: AppColors.primarySoft, child: Icon(_icon('${n['type']}'), color: AppColors.primary, size: 20)),

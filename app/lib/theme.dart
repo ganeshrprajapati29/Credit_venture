@@ -2,28 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class AppColors {
-  static const primary = Color(0xFF2E3FB8);
-  static const primaryDark = Color(0xFF141C5C);
-  static const primaryDeep = Color(0xFF1F2B8A);
-  static const primarySoft = Color(0xFFEEF1FF);
-  static const accent = Color(0xFF10B981);
-  static const accentDark = Color(0xFF059669);
-  static const accentSoft = Color(0xFFE7F8F1);
-  static const bg = Color(0xFFF5F6FB);
+  // Moneyview-style palette: soft lavender screens with deep green actions
+  static const primary = Color(0xFF0F4F3C);
+  static const primaryDark = Color(0xFF0A3A2C);
+  static const primaryDeep = Color(0xFF0F4F3C);
+  static const primarySoft = Color(0xFFE2EFE9);
+  static const accent = Color(0xFF2FB67C);
+  static const accentDark = Color(0xFF13855A);
+  static const accentSoft = Color(0xFFE3F6EC);
+  static const bg = Color(0xFFF1EBF8);
   static const surface = Colors.white;
-  static const text = Color(0xFF0F172A);
-  static const textMuted = Color(0xFF64748B);
-  static const border = Color(0xFFE2E8F0);
-  static const danger = Color(0xFFE11D48);
+  static const text = Color(0xFF1B1B1F);
+  static const textMuted = Color(0xFF66616F);
+  static const border = Color(0xFFB9B2C4);
+  static const danger = Color(0xFFD92D48);
   static const warning = Color(0xFFF59E0B);
+  static const onHeroMuted = Color(0xFFBFE3D3);
+  static const onHeroSoft = Color(0xFFDDF1E8);
 
   static const heroGradient = LinearGradient(
-    colors: [Color(0xFF3443C9), Color(0xFF1F2B8A), Color(0xFF141C5C)],
+    colors: [Color(0xFF17785A), Color(0xFF0F4F3C), Color(0xFF0A3A2C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const accentGradient = LinearGradient(
-    colors: [Color(0xFF10B981), Color(0xFF34D399)],
+    colors: [Color(0xFF2FB67C), Color(0xFF6EE7B7)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -58,7 +61,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: const Color(0x66FFFFFF),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 15),
         floatingLabelStyle: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
@@ -74,9 +77,9 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFCBD5E1),
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size.fromHeight(54),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontFamily: font, fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
@@ -97,12 +100,13 @@ class AppTheme {
       ),
       checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? AppColors.primaryDeep : Colors.white),
+        fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? AppColors.primaryDeep : Colors.transparent),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
         side: const BorderSide(color: Color(0xFF94A3B8), width: 1.5),
       ),
       sliderTheme: const SliderThemeData(
         activeTrackColor: AppColors.primaryDeep,
-        inactiveTrackColor: Color(0xFFDDE1F3),
+        inactiveTrackColor: Color(0xFFD9D2E3),
         thumbColor: AppColors.primaryDeep,
         trackHeight: 6,
       ),

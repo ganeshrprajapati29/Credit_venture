@@ -17,9 +17,9 @@ async function ensureSuperAdmin() {
 async function seedBanners() {
   if (await Banner.countDocuments()) return;
   await Banner.insertMany([
-    { title: 'Instant Personal Loan', subtitle: 'Get up to ₹2,00,000 in your bank account', ctaText: 'Apply Now', bgColor: '#1B2A6B', order: 1 },
-    { title: '100% Digital Process', subtitle: 'Upload documents from your phone. No branch visit.', ctaText: 'Check Offer', bgColor: '#0F766E', order: 2 },
-    { title: 'Flexible EMIs', subtitle: 'Choose a tenure from 3 to 12 months', ctaText: 'Calculate EMI', bgColor: '#7C3AED', order: 3 },
+    { title: 'Loans for every need', subtitle: 'Personal, business, home, gold, vehicle & education loans', ctaText: 'Apply Now', bgColor: '#0F4F3C', order: 1 },
+    { title: '100% Digital Process', subtitle: 'Upload documents from your phone. No branch visit.', ctaText: 'Check Offer', bgColor: '#0369A1', order: 2 },
+    { title: 'Business Loan up to ₹10 Lakh', subtitle: 'Working capital for shops, traders & MSMEs', ctaText: 'Apply Now', bgColor: '#7C3AED', order: 3 },
   ]);
   console.log('[seed] default banners created');
 }

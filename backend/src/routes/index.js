@@ -21,6 +21,8 @@ router.get('/app/config', app.config);
 router.get('/app/banners', app.banners);
 
 /* ------------------------------------------------------------- user auth */
+router.post('/auth/otp/send', authLimiter, auth.sendOtp);
+router.post('/auth/otp/verify', authLimiter, auth.verifyOtp);
 router.post('/auth/check', authLimiter, auth.checkMobile);
 router.post('/auth/register', authLimiter, auth.register);
 router.post('/auth/login', authLimiter, auth.login);
@@ -36,6 +38,7 @@ router.get('/loans', requireUser, loan.list);
 router.put('/loans/current/basic', requireUser, loan.saveBasic);
 router.put('/loans/current/offer', requireUser, loan.saveOffer);
 router.put('/loans/current/personal', requireUser, loan.savePersonal);
+router.put('/loans/current/product', requireUser, loan.saveProductDetails);
 router.put('/loans/current/employment', requireUser, loan.saveEmployment);
 router.put('/loans/current/address', requireUser, loan.saveAddress);
 router.put(

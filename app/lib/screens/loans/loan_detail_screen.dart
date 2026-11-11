@@ -79,7 +79,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     final pendingProofs = payments.where((p) => p['status'] == 'pending').map((p) => p['installmentNo']).toSet();
 
     return Scaffold(
-      appBar: AppBar(title: Text('${l['loanNumber']}')),
+      appBar: AppBar(title: Text('${l['productName'] ?? 'Loan'} · ${l['loanNumber']}')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
@@ -88,7 +88,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(22)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Expanded(child: Text(approved ? 'Approved amount' : 'Requested amount', style: const TextStyle(color: Color(0xFFC3CBFD)))),
+                Expanded(child: Text(approved ? 'Approved amount' : 'Requested amount', style: const TextStyle(color: AppColors.onHeroMuted))),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
@@ -98,7 +98,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               Text(inr(terms['amount']), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
               const SizedBox(height: 14),
               Row(children: [
-                _hero('Tenure', '${terms['tenureMonths'] ?? '-'} months'),
+                _hero('Tenure', fmtTenure(terms['tenureMonths'])),
                 _hero('EMI', inr(terms['emi'])),
                 _hero('Interest', '${terms['interestRate'] ?? '-'}% p.a.'),
               ]),
@@ -211,7 +211,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
 
   Widget _hero(String k, String v) => Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(k, style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 12)),
+          Text(k, style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12)),
           Text(v, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         ]),
       );

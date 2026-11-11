@@ -62,8 +62,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
       child: StepScaffold(
         title: 'A little more about you',
         subtitle: 'Provide a few basic details',
-        step: 3,
-        totalSteps: ApplyFlow.totalSteps,
+        stepKey: 'personal',
         bottom: PrimaryButton(label: 'Continue', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: _submit),
         body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           AppField(controller: father, label: "Father's name", caps: TextCapitalization.words, validator: nameRule),

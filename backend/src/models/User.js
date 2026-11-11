@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [/^[6-9]\d{9}$/, 'Enter a valid 10 digit Indian mobile number'],
     },
-    mpinHash: { type: String, required: true, select: false },
+    mpinHash: { type: String, select: false }, // optional – login is by OTP
     fullName: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true },
     status: { type: String, enum: ['active', 'blocked'], default: 'active' },

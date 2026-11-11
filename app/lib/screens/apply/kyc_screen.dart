@@ -80,8 +80,7 @@ class _KycScreenState extends State<KycScreen> {
       child: StepScaffold(
         title: 'Submit your KYC',
         subtitle: 'Enter your Aadhaar & PAN details and upload clear photos',
-        step: 6,
-        totalSteps: ApplyFlow.totalSteps,
+        stepKey: 'kyc',
         bottom: Column(mainAxisSize: MainAxisSize.min, children: [
           if (busy) ...[
             ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: progress, minHeight: 5)),

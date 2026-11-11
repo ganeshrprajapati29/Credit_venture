@@ -6,11 +6,12 @@ const { RX, validate, isValidAadhaar, maskAadhaar, ageFrom } = require('../utils
 const { buildQuote, eligibleRange } = require('../utils/emi');
 const { fileMeta, removeFile, PRIVATE_DIR } = require('../middleware/upload');
 
-const STEPS = ['basic', 'offer', 'personal', 'employment', 'address', 'kyc', 'bank', 'review', 'done'];
-const stepIndex = (s) => Math.max(0, STEPS.indexOf(s));
+/** Move currentStep forward (never backwards) after `completedStep` is saved. */
 const advance = (loan, completedStep) => {
-  const next = STEPS[stepIndex(completedStep) + 1] || 'review';
-  if (stepIndex(next) > stepIndex(loan.currentStep)) loan.currentStep = next;
+  const steps = loan.stepList();
+  const idx = (st) => (st === 'done' ? steps.length : Math.max(0, steps.indexOf(st)));
+  const next = steps[steps.indexOf(completedStep) + 1] || 'review';
+  if (idx(next) > idx(loan.currentStep)) loan.currentStep = next;
 };
 
 const forUser = (loan) => {
@@ -28,6 +29,7 @@ const getDraft = async (userId) => {
 };
 
 const offerFor = (loan, settings) => {
+  settings = settings.forProduct ? settings.forProduct(loan.product) : settings;
   const range = eligibleRange(loan.basic.monthlyIncome, settings);
   const tenures = settings.tenureOptions.map((m) => {
     const q = buildQuote(loan.offer?.amount || range.max, m, settings);
@@ -46,7 +48,7 @@ exports.current = asyncHandler(async (req, res) => {
 exports.list = asyncHandler(async (req, res) => {
   const loans = await Loan.find({ user: req.user._id, status: { $ne: 'draft' } })
     .sort({ createdAt: -1 })
-    .select('loanNumber status offer approved disbursal createdAt submittedAt closedAt');
+    .select('loanNumber status product productName offer approved disbursal createdAt submittedAt closedAt');
   ok(res, { loans });
 });
 
@@ -60,8 +62,8 @@ exports.detail = asyncHandler(async (req, res) => {
 /* ---------------------------------------------------------------- step 1: basic + eligibility */
 
 exports.saveBasic = asyncHandler(async (req, res) => {
-  const s = await Setting.get();
-  if (!s.acceptingApplications) throw ApiError.badRequest('We are not accepting new applications right now. Please try later.');
+  const settings = await Setting.get();
+  if (!settings.acceptingApplications) throw ApiError.badRequest('We are not accepting new applications right now. Please try later.');
   const b = req.body;
   validate(b, {
     firstName: { required: true, label: 'First name', rx: /^[A-Za-z][A-Za-z .'-]{0,49}$/, msg: 'Enter first name as per PAN' },
@@ -89,6 +91,23 @@ exports.saveBasic = asyncHandler(async (req, res) => {
     throw ApiError.conflict(`You already have an active application (${existing.loanNumber}).`);
   }
   const loan = existing || new Loan({ user: req.user._id, status: 'draft', currentStep: 'basic' });
+
+  // loan category
+  const productKey = String(b.product || loan.product || 'personal');
+  const product = (settings.loanProducts || []).find((p) => p.key === productKey);
+  if (!product || product.active === false) throw ApiError.badRequest('This loan type is not available right now');
+  if (loan.product !== productKey || !loan.steps || !loan.steps.length) {
+    if (existing && loan.product && loan.product !== productKey) {
+      loan.offer = undefined;
+      loan.productDetails = undefined;
+      loan.currentStep = 'basic';
+      loan.addHistory('draft', 'user', `Switched to ${product.name}`);
+    }
+    loan.product = productKey;
+    loan.productName = product.name;
+    loan.steps = product.steps && product.steps.length ? product.steps : Loan.DEFAULT_STEPS;
+  }
+  const s = settings.forProduct(productKey);
 
   loan.basic = {
     ...pick(b, ['firstName', 'lastName', 'gender', 'education', 'maritalStatus', 'employmentType', 'salaryMode']),
@@ -130,16 +149,22 @@ exports.saveBasic = asyncHandler(async (req, res) => {
   const amount = preferred ? Math.min(range.max, Math.max(range.min, Math.round(preferred / range.step) * range.step)) : range.max;
   const q = buildQuote(amount, s.tenureOptions[0], s);
   loan.offer = { ...q, minAmount: range.min, maxAmount: range.max };
-  if (!existing) loan.addHistory('draft', 'user', 'Application started');
+  if (!existing) loan.addHistory('draft', 'user', `${product.name} application started`);
   advance(loan, 'basic');
   await loan.save();
-  ok(res, { eligible: true, loan: forUser(loan), offer: offerFor(loan, s) }, 'Congratulations! You have a pre-approved offer');
+  ok(res, { eligible: true, loan: forUser(loan), offer: offerFor(loan, settings) }, 'Congratulations! You have a pre-approved offer');
 });
 
 /* ---------------------------------------------------------------- step 2: choose offer */
 
 exports.quote = asyncHandler(async (req, res) => {
-  const s = await Setting.get();
+  const settings = await Setting.get();
+  let productKey = req.query.product;
+  if (!productKey) {
+    const draft = await Loan.findOne({ user: req.user._id, status: 'draft' }).select('product').lean();
+    productKey = draft?.product || 'personal';
+  }
+  const s = settings.forProduct(productKey);
   const amount = Number(req.query.amount || req.body.amount);
   const tenure = Number(req.query.tenure || req.body.tenure || s.tenureOptions[0]);
   if (!amount) throw ApiError.badRequest('Amount is required');
@@ -151,8 +176,8 @@ exports.quote = asyncHandler(async (req, res) => {
 });
 
 exports.saveOffer = asyncHandler(async (req, res) => {
-  const s = await Setting.get();
   const loan = await getDraft(req.user._id);
+  const s = (await Setting.get()).forProduct(loan.product);
   if (!loan.offer?.maxAmount) throw ApiError.badRequest('Please complete basic details first');
   const amount = Number(req.body.amount);
   const tenure = Number(req.body.tenureMonths);
@@ -182,6 +207,51 @@ exports.savePersonal = asyncHandler(async (req, res) => {
   loan.personal = pick(req.body, ['fatherName', 'motherName', 'residenceType', 'purpose', 'language']);
   loan.personal.pepDeclaration = true;
   advance(loan, 'personal');
+  await loan.save();
+  ok(res, { loan: forUser(loan) }, 'Saved');
+});
+
+/* ---------------------------------------------------------------- category specific details */
+
+exports.saveProductDetails = asyncHandler(async (req, res) => {
+  const loan = await getDraft(req.user._id);
+  const product = (await Setting.get()).product(loan.product);
+  const fields = product.fields || [];
+  if (!fields.length) throw ApiError.badRequest('No extra details needed for this loan type');
+  const out = {};
+  const errors = {};
+  for (const f of fields) {
+    let v = req.body[f.key];
+    if (typeof v === 'string') v = v.trim();
+    const empty = v === undefined || v === null || v === '';
+    if (empty) {
+      if (f.required) errors[f.key] = `${f.label.replace(/\s*\(.*\)$/, '')} is required`;
+      continue;
+    }
+    if (f.type === 'number') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0) {
+        errors[f.key] = `Enter a valid ${f.label}`;
+        continue;
+      }
+      v = n;
+    } else if (f.type === 'pincode') {
+      if (!RX.pincode.test(String(v))) errors[f.key] = 'Enter a valid 6 digit PIN code';
+    } else if (f.type === 'select') {
+      if (Array.isArray(f.options) && f.options.length && !f.options.includes(v)) errors[f.key] = `Please select a valid ${f.label}`;
+    } else {
+      v = String(v).slice(0, 200);
+      if (f.pattern && !new RegExp(f.pattern).test(String(v).toUpperCase())) errors[f.key] = f.patternMsg || `Invalid ${f.label}`;
+      if (f.pattern) v = String(v).toUpperCase();
+    }
+    out[f.key] = v;
+  }
+  const keys = Object.keys(errors);
+  if (keys.length) throw ApiError.badRequest(errors[keys[0]], errors);
+  loan.productDetails = out;
+  loan.markModified('productDetails');
+  loan.verification.product = false;
+  advance(loan, 'product');
   await loan.save();
   ok(res, { loan: forUser(loan) }, 'Saved');
 });
@@ -328,8 +398,10 @@ exports.submit = asyncHandler(async (req, res) => {
   const missing = [];
   if (!loan.basic?.firstName) missing.push('basic details');
   if (!loan.offer?.amount || !loan.offer?.tenureMonths) missing.push('loan offer');
+  const steps = loan.stepList();
   if (!loan.personal?.fatherName) missing.push('personal details');
-  if (!loan.employment?.companyName) missing.push('company details');
+  if (steps.includes('product') && !loan.productDetails) missing.push('loan details');
+  if (steps.includes('employment') && !loan.employment?.companyName) missing.push('company details');
   if (!loan.address?.line1) missing.push('address');
   if (!loan.kyc?.panCard?.filename) missing.push('KYC documents');
   if (!loan.bank?.accountNumber) missing.push('bank details');

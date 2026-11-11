@@ -89,3 +89,21 @@ class Validators {
     return c == 0;
   }
 }
+
+/// 6 -> "6 months", 24 -> "2 years", 18 -> "18 months"
+String fmtTenure(dynamic months) {
+  final m = (months is num ? months : num.tryParse('${months ?? ''}'))?.toInt();
+  if (m == null) return '—';
+  if (m >= 24 && m % 12 == 0) return '${m ~/ 12} years';
+  return m == 1 ? '1 month' : '$m months';
+}
+
+/// ₹5,000 · ₹2 Lakh · ₹1.5 Crore
+String compactInr(dynamic v) {
+  final n = asNum(v);
+  if (n == null) return '—';
+  String trim(double x) => x.toStringAsFixed(x == x.roundToDouble() ? 0 : 1);
+  if (n >= 10000000) return '₹${trim(n / 10000000)} Crore';
+  if (n >= 100000) return '₹${trim(n / 100000)} Lakh';
+  return inr(n);
+}

@@ -51,7 +51,11 @@ const loanSchema = new Schema(
     loanNumber: { type: String, unique: true, index: true },
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     status: { type: String, enum: STATUSES, default: 'draft', index: true },
-    currentStep: { type: String, default: 'basic' }, // basic, offer, personal, employment, address, kyc, bank, review, done
+    currentStep: { type: String, default: 'basic' }, // one of `steps`, or 'done'
+    product: { type: String, default: 'personal', index: true }, // loan category key
+    productName: { type: String, default: 'Personal Loan' },
+    steps: { type: [String], default: undefined }, // application steps for this product
+    productDetails: { type: Schema.Types.Mixed, default: undefined }, // category specific form
 
     basic: {
       firstName: String,
@@ -158,6 +162,7 @@ const loanSchema = new Schema(
       bank: { type: Boolean, default: false },
       employment: { type: Boolean, default: false },
       address: { type: Boolean, default: false },
+      product: { type: Boolean, default: false },
     },
 
     approved: {
@@ -190,6 +195,11 @@ const loanSchema = new Schema(
 );
 
 loanSchema.statics.STATUSES = STATUSES;
+loanSchema.statics.DEFAULT_STEPS = ['basic', 'offer', 'personal', 'employment', 'address', 'kyc', 'bank', 'review'];
+
+loanSchema.methods.stepList = function stepList() {
+  return this.steps && this.steps.length ? this.steps : loanSchema.statics.DEFAULT_STEPS;
+};
 loanSchema.statics.ACTIVE_STATUSES = ['draft', 'submitted', 'under_review', 'approved', 'disbursed'];
 
 loanSchema.pre('save', async function assignNumber(next) {

@@ -33,6 +33,16 @@ class AppState extends ChangeNotifier {
 
   List<String> options(String key) => List<String>.from((settings['options'] ?? {})[key] ?? const []);
 
+  /// Active loan categories configured in the admin panel.
+  List<Map<String, dynamic>> get products => List<Map<String, dynamic>>.from(settings['products'] ?? const []);
+
+  Map<String, dynamic>? product(String? key) {
+    for (final p in products) {
+      if (p['key'] == key) return p;
+    }
+    return products.isEmpty ? null : products.first;
+  }
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     onboarded = prefs.getBool('onboarded') ?? false;
@@ -117,26 +127,18 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<bool> isRegistered(String mobile) async {
-    final r = await api.post('/auth/check', {'mobile': mobile});
-    return r['data']['registered'] == true;
+  /// Requests an OTP. In demo mode the response contains `otp` so it can be shown on screen.
+  Future<Map<String, dynamic>> sendOtp(String mobile) async {
+    final r = await api.post('/auth/otp/send', {'mobile': mobile});
+    return Map<String, dynamic>.from(r['data']);
   }
 
-  Future<void> login(String mobile, String mpin) async {
-    final r = await api.post('/auth/login', {'mobile': mobile, 'mpin': mpin, 'device': device});
-    await _afterAuth(r['data']);
-  }
-
-  Future<void> register(String mobile, String mpin) async {
-    final r = await api.post('/auth/register', {
+  Future<void> verifyOtp(String mobile, String otp) async {
+    final r = await api.post('/auth/otp/verify', {
       'mobile': mobile,
-      'mpin': mpin,
+      'otp': otp,
       'device': device,
-      'consent': {
-        'termsAccepted': true,
-        'privacyAccepted': true,
-        'permissions': await grantedPermissions(),
-      },
+      'consent': {'termsAccepted': true, 'privacyAccepted': true, 'permissions': await grantedPermissions()},
     });
     await _afterAuth(r['data']);
   }

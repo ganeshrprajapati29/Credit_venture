@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 280">
   <defs>
-    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3443C9"/><stop offset="1" stop-color="#141C5C"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17785A"/><stop offset="1" stop-color="#0A3A2C"/></linearGradient>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34D399"/><stop offset="1" stop-color="#059669"/></linearGradient>
   </defs>
-  <circle cx="160" cy="140" r="120" fill="#EEF1FF"/>
-  <circle cx="160" cy="140" r="86" fill="#DFE4FF"/>
+  <circle cx="160" cy="140" r="120" fill="#E7F3EE"/>
+  <circle cx="160" cy="140" r="86" fill="#D3EBE0"/>
   <rect x="112" y="40" width="96" height="190" rx="18" fill="url(#p)"/>
   <rect x="120" y="58" width="80" height="150" rx="10" fill="#fff"/>
-  <rect x="146" y="46" width="28" height="5" rx="2.5" fill="#5B5FE6"/>
-  <rect x="130" y="70" width="40" height="7" rx="3.5" fill="#C3CBFD"/>
-  <rect x="130" y="84" width="60" height="16" rx="5" fill="#1F2B8A"/>
-  <rect x="130" y="108" width="60" height="6" rx="3" fill="#DFE4FF"/>
+  <rect x="146" y="46" width="28" height="5" rx="2.5" fill="#2FB67C"/>
+  <rect x="130" y="70" width="40" height="7" rx="3.5" fill="#A8D8C2"/>
+  <rect x="130" y="84" width="60" height="16" rx="5" fill="#0F4F3C"/>
+  <rect x="130" y="108" width="60" height="6" rx="3" fill="#D3EBE0"/>
   <rect x="130" y="108" width="42" height="6" rx="3" fill="#10B981"/>
-  <rect x="130" y="124" width="60" height="22" rx="6" fill="#EEF1FF"/>
-  <rect x="130" y="152" width="60" height="22" rx="6" fill="#EEF1FF"/>
+  <rect x="130" y="124" width="60" height="22" rx="6" fill="#E7F3EE"/>
+  <rect x="130" y="152" width="60" height="22" rx="6" fill="#E7F3EE"/>
   <rect x="130" y="184" width="60" height="14" rx="7" fill="#10B981"/>
   <circle cx="246" cy="88" r="34" fill="url(#g)"/>
   <text x="246" y="101" font-family="Arial" font-size="38" font-weight="700" fill="#fff" text-anchor="middle">₹</text>
   <circle cx="74" cy="176" r="26" fill="#FDE68A"/>
   <text x="74" y="186" font-family="Arial" font-size="28" font-weight="700" fill="#B45309" text-anchor="middle">₹</text>
-  <path d="M60 90l10 0M65 85l0 10" stroke="#5B5FE6" stroke-width="3" stroke-linecap="round"/>
+  <path d="M60 90l10 0M65 85l0 10" stroke="#2FB67C" stroke-width="3" stroke-linecap="round"/>
   <path d="M262 190l12 0M268 184l0 12" stroke="#10B981" stroke-width="3" stroke-linecap="round"/>
   <circle cx="92" cy="60" r="5" fill="#10B981"/>
-  <circle cx="240" cy="224" r="6" fill="#7A82F2"/>
+  <circle cx="240" cy="224" r="6" fill="#6CC7A0"/>
 </svg>

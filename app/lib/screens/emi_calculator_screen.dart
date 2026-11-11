@@ -46,7 +46,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(22)),
           child: Column(children: [
-            const Text('Your monthly EMI', style: TextStyle(color: Color(0xFFC3CBFD))),
+            const Text('Your monthly EMI', style: TextStyle(color: AppColors.onHeroMuted)),
             const SizedBox(height: 4),
             Text(inr(emi), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800)),
             const SizedBox(height: 16),
@@ -69,7 +69,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
         SectionCard(
           child: Column(children: [
             _slider('Loan amount', inr(amount), amount, minA, maxA, ((maxA - minA) / 1000).round(), (v) => setState(() => amount = v)),
-            _slider('Tenure', '${months.round()} months', months, 3, 24, 21, (v) => setState(() => months = v)),
+            _slider('Tenure', fmtTenure(months.round()), months, 3, 60, 57, (v) => setState(() => months = v)),
             _slider('Interest rate', '${rate.toStringAsFixed(1)}% p.a.', rate, 10, 40, 60, (v) => setState(() => rate = v)),
           ]),
         ),
@@ -84,7 +84,7 @@ class _EmiCalculatorScreenState extends State<EmiCalculatorScreen> {
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
             const SizedBox(width: 6),
-            Text(k, style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 12)),
+            Text(k, style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12)),
           ]),
           Text(v, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         ]),

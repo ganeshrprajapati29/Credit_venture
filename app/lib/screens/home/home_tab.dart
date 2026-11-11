@@ -10,6 +10,7 @@ import '../../core/format.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../apply/flow.dart';
+import '../apply/product_screen.dart';
 import '../emi_calculator_screen.dart';
 import '../loans/loan_detail_screen.dart';
 import '../loans/payment_screen.dart';
@@ -38,6 +39,9 @@ class _HomeTabState extends State<HomeTab> {
     final s = context.watch<AppState>();
     final name = '${s.user?['fullName'] ?? ''}'.split(' ').first;
     final cfg = s.loanConfig;
+    final tenures = [for (final p in s.products) ...List<num>.from((p['tenureOptions'] as List?)?.map((e) => asNum(e) ?? 0) ?? const [])];
+    final maxTen = tenures.isEmpty ? (cfg['tenureOptions'] as List?)?.last ?? 12 : tenures.reduce((a, b) => a > b ? a : b);
+    final maxAmt = s.products.fold<num>(asNum(cfg['maxAmount']) ?? 0, (m, p) => (asNum(p['maxAmount']) ?? 0) > m ? asNum(p['maxAmount'])! : m);
     return RefreshIndicator(
       onRefresh: _refresh,
       color: AppColors.primary,
@@ -66,7 +70,7 @@ class _HomeTabState extends State<HomeTab> {
                               name.isEmpty ? 'Hello there 👋' : 'Hi, $name 👋',
                               style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
                             ),
-                            const Text('Welcome to Credit Ventures', style: TextStyle(color: Color(0xFFC3CBFD), fontSize: 12.5)),
+                            const Text('Welcome to Credit Ventures', style: TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
                           ],
                         ),
                       ),
@@ -97,6 +101,11 @@ class _HomeTabState extends State<HomeTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (s.products.isNotEmpty) ...[
+                        _sectionTitle('Choose your loan'),
+                        Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: ProductGrid(products: s.products)),
+                        const SizedBox(height: 24),
+                      ],
                       if (s.banners.isNotEmpty) _BannerCarousel(banners: s.banners),
                       const SizedBox(height: 22),
                       _sectionTitle('Why Credit Ventures'),
@@ -110,10 +119,10 @@ class _HomeTabState extends State<HomeTab> {
                           crossAxisSpacing: 12,
                           childAspectRatio: 1.55,
                           children: [
-                            _Feature(Icons.currency_rupee_rounded, 'Up to ${inr(cfg['maxAmount'])}', 'Loan amount', const Color(0xFF3443C9)),
+                            _Feature(Icons.currency_rupee_rounded, 'Up to ${compactInr(maxAmt)}', 'Loan amount', const Color(0xFF0F4F3C)),
                             _Feature(
                               Icons.calendar_month_rounded,
-                              '${(cfg['tenureOptions'] as List?)?.first ?? 3}-${(cfg['tenureOptions'] as List?)?.last ?? 12} months',
+                              'Up to ${fmtTenure(maxTen)}',
                               'Flexible tenure',
                               const Color(0xFF059669),
                             ),
@@ -212,29 +221,29 @@ class _LoanCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(color: AppColors.accentSoft, borderRadius: BorderRadius.circular(20)),
                 child: const Text(
-                  'PERSONAL LOAN',
+                  'LOANS FOR EVERY NEED',
                   style: TextStyle(color: AppColors.accentDark, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          const Text('Get instant cash up to', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+          const Text('Get a loan of up to', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
           const SizedBox(height: 2),
           Text(
-            inr(cfg['maxAmount']),
+            compactInr(state.products.fold<num>(asNum(cfg['maxAmount']) ?? 0, (m, p) => (asNum(p['maxAmount']) ?? 0) > m ? asNum(p['maxAmount'])! : m)),
             style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: -1),
           ),
           const SizedBox(height: 4),
           Text(
-            'Interest from ${cfg['interestRate'] ?? '--'}% p.a. · Tenure up to ${(cfg['tenureOptions'] as List?)?.last ?? 12} months',
+            'Personal, business, home, gold, vehicle & education loans',
             style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
           ),
           const SizedBox(height: 18),
           PrimaryButton(
             label: accepting ? 'Check my offer' : 'Applications paused',
             icon: accepting ? Icons.arrow_forward_rounded : null,
-            onPressed: accepting ? () => ApplyFlow.open(context) : null,
+            onPressed: accepting ? () => showProductPicker(context) : null,
           ),
           const SizedBox(height: 10),
           const Row(
@@ -251,7 +260,9 @@ class _LoanCard extends StatelessWidget {
   }
 
   Widget _draftCard(BuildContext context, Map<String, dynamic> loan) {
-    final step = ApplyFlow.stepNumber('${loan['currentStep']}');
+    final steps = List<String>.from(loan['steps'] ?? StepScaffold.defaultSteps);
+    final total = steps.length;
+    final step = ApplyFlow.stepNumber(steps, '${loan['currentStep']}');
     final amount = dig(loan, 'offer.amount');
     return _shell(
       child: Column(
@@ -262,27 +273,30 @@ class _LoanCard extends StatelessWidget {
               const Expanded(
                 child: Text('Complete your application', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               ),
+              const SizedBox(width: 8),
               const StatusChip('draft'),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            amount != null ? 'Your offer of ${inr(amount)} is waiting for you' : 'You are just a few steps away',
+            amount != null
+                ? 'Your ${loan['productName'] ?? 'loan'} offer of ${inr(amount)} is waiting for you'
+                : 'Your ${loan['productName'] ?? 'loan'} application is just a few steps away',
             style: const TextStyle(color: AppColors.textMuted),
           ),
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
-              value: (step - 1) / ApplyFlow.totalSteps,
+              value: (step - 1) / total,
               minHeight: 8,
-              backgroundColor: const Color(0xFFEDEFF7),
+              backgroundColor: const Color(0xFFE4DDEE),
               valueColor: const AlwaysStoppedAnimation(AppColors.accent),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '${step - 1} of ${ApplyFlow.totalSteps} steps completed',
+            '${step - 1} of $total steps completed',
             style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
@@ -375,7 +389,7 @@ class _LoanCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Next EMI',
-                  style: TextStyle(color: Color(0xFFC3CBFD), fontWeight: FontWeight.w600),
+                  style: TextStyle(color: AppColors.onHeroMuted, fontWeight: FontWeight.w600),
                 ),
               ),
               if (overdue)
@@ -395,7 +409,7 @@ class _LoanCard extends StatelessWidget {
             style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800),
           ),
           if (next != null)
-            Text('Due on ${fmtDate(next['dueDate'])} · EMI ${next['installmentNo']} of ${schedule.length}', style: const TextStyle(color: Color(0xFFDFE4FF))),
+            Text('Due on ${fmtDate(next['dueDate'])} · EMI ${next['installmentNo']} of ${schedule.length}', style: const TextStyle(color: AppColors.onHeroSoft)),
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -407,7 +421,7 @@ class _LoanCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text('$paid of ${schedule.length} EMIs paid · Loan ${loan['loanNumber']}', style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 12)),
+          Text('$paid of ${schedule.length} EMIs paid · Loan ${loan['loanNumber']}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -487,7 +501,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
       launchUrl(Uri.parse('${b['link']}'), mode: LaunchMode.externalApplication);
     } else if (action == 'apply') {
       final s = context.read<AppState>();
-      if (s.loan == null || s.loan!['status'] == 'draft') ApplyFlow.open(context);
+      if (s.loan == null || s.loan!['status'] == 'draft') showProductPicker(context);
     }
   }
 

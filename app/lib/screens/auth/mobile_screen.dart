@@ -6,8 +6,10 @@ import '../../core/app_state.dart';
 import '../../core/format.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
-import 'mpin_screen.dart';
+import '../legal_screen.dart';
+import 'otp_screen.dart';
 
+/// Step 1 of login: mobile number (OTP is sent on Continue).
 class MobileScreen extends StatefulWidget {
   const MobileScreen({super.key});
   @override
@@ -17,16 +19,18 @@ class MobileScreen extends StatefulWidget {
 class _MobileScreenState extends State<MobileScreen> {
   final _ctrl = TextEditingController();
   bool busy = false;
+  bool agree = true;
 
-  bool get valid => Validators.mobile.hasMatch(_ctrl.text);
+  bool get valid => Validators.mobile.hasMatch(_ctrl.text) && agree;
 
   Future<void> _next() async {
     if (!valid) return;
+    FocusScope.of(context).unfocus();
     setState(() => busy = true);
     try {
-      final registered = await context.read<AppState>().isRegistered(_ctrl.text);
+      final res = await context.read<AppState>().sendOtp(_ctrl.text);
       if (!mounted) return;
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => MpinScreen(mobile: _ctrl.text, isLogin: registered)));
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => OtpScreen(mobile: _ctrl.text, initial: res)));
     } catch (e) {
       if (mounted) showSnack(context, errorText(e), error: true);
     } finally {
@@ -37,74 +41,87 @@ class _MobileScreenState extends State<MobileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(children: [
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 36, 24, 36),
-          decoration: const BoxDecoration(
-            gradient: AppColors.heroGradient,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const BrandLogo(size: 56),
-            const SizedBox(height: 22),
-            const Text('Welcome to\nCredit Ventures', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, height: 1.15)),
-            const SizedBox(height: 10),
-            const Text('Personal loans from ₹5,000 with simple, transparent EMIs.', style: TextStyle(color: Color(0xFFC3CBFD), fontSize: 14.5)),
-            const SizedBox(height: 22),
-            Wrap(spacing: 8, runSpacing: 8, children: const [
-              _Pill(Icons.bolt_rounded, 'Quick approval'),
-              _Pill(Icons.description_rounded, 'Paperless'),
-              _Pill(Icons.shield_rounded, '100% secure'),
-            ]),
-          ]),
-        ),
-        Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(24, 32, 24, 24), children: [
-            const Text('Enter your mobile number', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            const Text('Use the number linked to your Aadhaar & bank account', style: TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 22),
-            TextField(
-              controller: _ctrl,
-              autofocus: true,
-              keyboardType: TextInputType.phone,
-              maxLength: 10,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => _next(),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 1.5),
-              decoration: InputDecoration(
-                counterText: '',
-                hintText: '98765 43210',
-                prefixIcon: Container(
-                  width: 72,
-                  alignment: Alignment.center,
-                  child: const Text('+91', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(children: [
+          Expanded(
+            child: ListView(padding: const EdgeInsets.fromLTRB(24, 28, 24, 24), children: [
+              Row(children: [
+                const BrandLogo(size: 44),
+                const SizedBox(width: 12),
+                const Text('Credit Ventures', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary)),
+              ]),
+              const SizedBox(height: 40),
+              const Text("Let's get started", style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              const Text('Enter your mobile number to login or sign up', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+              const SizedBox(height: 28),
+              TextField(
+                controller: _ctrl,
+                autofocus: true,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _next(),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 1.5),
+                decoration: InputDecoration(
+                  labelText: 'Mobile number',
+                  counterText: '',
+                  prefixIcon: Container(
+                    width: 64,
+                    alignment: Alignment.center,
+                    child: const Text('+91', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  ),
                 ),
               ),
-            ),
-          ]),
-        ),
-        BottomAction(child: PrimaryButton(label: 'Continue', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: valid ? _next : null)),
-      ]),
+              const SizedBox(height: 6),
+              const Text('Use the number linked to your Aadhaar and bank account', style: TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
+              const SizedBox(height: 22),
+              ConsentTile(
+                value: agree,
+                onChanged: (v) => setState(() => agree = v),
+                text: Text.rich(TextSpan(children: [
+                  const TextSpan(text: 'I agree to the '),
+                  WidgetSpan(
+                    child: GestureDetector(
+                      onTap: () => LegalScreen.open(context, terms: true),
+                      child: const Text('Terms of Service', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, fontSize: 13.5)),
+                    ),
+                  ),
+                  const TextSpan(text: ' and '),
+                  WidgetSpan(
+                    child: GestureDetector(
+                      onTap: () => LegalScreen.open(context, terms: false),
+                      child: const Text('Privacy Policy', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, fontSize: 13.5)),
+                    ),
+                  ),
+                  const TextSpan(text: ', and to receive OTP and loan updates on this number.'),
+                ])),
+              ),
+              const SizedBox(height: 26),
+              Row(children: const [
+                Expanded(child: _Trust(Icons.lock_rounded, '100% secure')),
+                Expanded(child: _Trust(Icons.bolt_rounded, 'Quick approval')),
+                Expanded(child: _Trust(Icons.description_rounded, 'Paperless')),
+              ]),
+            ]),
+          ),
+          BottomAction(child: PrimaryButton(label: 'Get OTP', loading: busy, onPressed: valid ? _next : null)),
+        ]),
+      ),
     );
   }
 }
 
-class _Pill extends StatelessWidget {
+class _Trust extends StatelessWidget {
   final IconData icon;
   final String text;
-  const _Pill(this.icon, this.text);
+  const _Trust(this.icon, this.text);
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(30)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 15, color: const Color(0xFF6EE7B7)),
-          const SizedBox(width: 6),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600)),
-        ]),
-      );
+  Widget build(BuildContext context) => Column(children: [
+        CircleAvatar(radius: 20, backgroundColor: AppColors.primarySoft, child: Icon(icon, size: 18, color: AppColors.primary)),
+        const SizedBox(height: 6),
+        Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+      ]);
 }

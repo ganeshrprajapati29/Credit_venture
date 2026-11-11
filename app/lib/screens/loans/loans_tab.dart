@@ -90,20 +90,20 @@ class _LoansTabState extends State<LoansTab> {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(12)),
-                                  child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary),
+                                  child: Icon(productIcon('${l['product']}'), color: AppColors.primary),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     Text(inr(dig(l, 'approved.amount') ?? dig(l, 'offer.amount')), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                                    Text('${l['loanNumber']}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
+                                    Text('${l['productName'] ?? 'Personal Loan'} · ${l['loanNumber']}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
                                   ]),
                                 ),
                                 StatusChip('${l['status']}'),
                               ]),
                               const Divider(height: 24),
                               Row(children: [
-                                _mini('Tenure', '${dig(l, 'approved.tenureMonths') ?? dig(l, 'offer.tenureMonths') ?? '-'} mo'),
+                                _mini('Tenure', fmtTenure(dig(l, 'approved.tenureMonths') ?? dig(l, 'offer.tenureMonths'))),
                                 _mini('EMI', inr(dig(l, 'approved.emi') ?? dig(l, 'offer.emi'))),
                                 _mini('Applied', fmtDate(l['submittedAt'] ?? l['createdAt'])),
                               ]),

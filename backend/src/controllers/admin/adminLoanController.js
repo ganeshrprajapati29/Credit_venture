@@ -81,6 +81,7 @@ exports.list = asyncHandler(async (req, res) => {
   const q = {};
   if (req.query.status && req.query.status !== 'all') q.status = req.query.status;
   else q.status = { $ne: 'draft' };
+  if (req.query.product && req.query.product !== 'all') q.product = req.query.product;
   if (req.query.includeDrafts === 'true' && !req.query.status) delete q.status;
   if (req.query.search) {
     const rx = new RegExp(escapeRegex(req.query.search.trim()), 'i');
@@ -109,7 +110,7 @@ exports.list = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(limit)
       .populate('user', 'mobile fullName')
-      .select('loanNumber status currentStep user basic.firstName basic.lastName basic.monthlyIncome offer.amount offer.tenureMonths offer.emi approved.amount submittedAt createdAt updatedAt verification')
+      .select('loanNumber status currentStep product productName user basic.firstName basic.lastName basic.monthlyIncome offer.amount offer.tenureMonths offer.emi approved.amount submittedAt createdAt updatedAt verification')
       .lean(),
     Loan.countDocuments(q),
   ]);
@@ -131,7 +132,7 @@ exports.detail = asyncHandler(async (req, res) => {
 exports.updateVerification = asyncHandler(async (req, res) => {
   const loan = await Loan.findById(req.params.id);
   if (!loan) throw ApiError.notFound('Loan not found');
-  ['basic', 'kyc', 'bank', 'employment', 'address'].forEach((k) => {
+  ['basic', 'kyc', 'bank', 'employment', 'address', 'product'].forEach((k) => {
     if (typeof req.body[k] === 'boolean') loan.verification[k] = req.body[k];
   });
   if (loan.status === 'submitted') {
@@ -172,7 +173,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
     if (!amount || amount <= 0) throw ApiError.badRequest('Approved amount is required');
     if (!tenure || tenure <= 0 || tenure > 120) throw ApiError.badRequest('Invalid tenure');
     if (!(rate >= 0 && rate <= 100)) throw ApiError.badRequest('Invalid interest rate');
-    const q = buildQuote(amount, tenure, { ...s.toObject(), interestRate: rate });
+    const q = buildQuote(amount, tenure, { ...s.forProduct(loan.product), interestRate: rate });
     loan.approved = {
       amount,
       tenureMonths: tenure,

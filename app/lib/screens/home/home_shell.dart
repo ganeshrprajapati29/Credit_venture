@@ -30,7 +30,7 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(index: index, children: pages),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.bg,
           indicatorColor: AppColors.primarySoft,
           labelTextStyle: WidgetStateProperty.resolveWith((st) => TextStyle(
                 fontSize: 12,

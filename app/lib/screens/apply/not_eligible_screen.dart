@@ -10,8 +10,8 @@ class NotEligibleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.white),
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(backgroundColor: AppColors.bg),
       body: ListView(padding: const EdgeInsets.all(24), children: [
         const EmptyView(
           title: 'We could not find an offer right now',

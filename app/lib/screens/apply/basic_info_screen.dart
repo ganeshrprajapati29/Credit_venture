@@ -12,7 +12,8 @@ import 'flow.dart';
 import 'not_eligible_screen.dart';
 
 class BasicInfoScreen extends StatefulWidget {
-  const BasicInfoScreen({super.key});
+  final String? productKey;
+  const BasicInfoScreen({super.key, this.productKey});
   @override
   State<BasicInfoScreen> createState() => _BasicInfoScreenState();
 }
@@ -29,11 +30,13 @@ class _BasicInfoScreenState extends State<BasicInfoScreen> {
   String? gender, education, marital, employment, salaryMode;
   bool cBureau = false, cCkyc = false, cIncome = false, cDisability = false;
   bool busy = false;
+  late String productKey;
 
   @override
   void initState() {
     super.initState();
     final s = context.read<AppState>();
+    productKey = widget.productKey ?? '${s.loan?['product'] ?? s.product(null)?['key'] ?? 'personal'}';
     final b = Map<String, dynamic>.from(s.loan?['basic'] ?? {});
     first.text = b['firstName'] ?? '';
     last.text = b['lastName'] ?? '';
@@ -81,6 +84,7 @@ class _BasicInfoScreenState extends State<BasicInfoScreen> {
     setState(() => busy = true);
     try {
       final r = await Api.instance.put('/loans/current/basic', {
+        'product': productKey,
         'firstName': first.text.trim(),
         'lastName': last.text.trim(),
         'dob': dob!.toIso8601String().substring(0, 10),
@@ -113,15 +117,20 @@ class _BasicInfoScreenState extends State<BasicInfoScreen> {
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final nameRule = Validators.pattern(Validators.name, 'Enter a valid name');
+    final product = s.product(productKey) ?? {};
     return Form(
       key: _form,
       child: StepScaffold(
         title: 'Tell us about yourself',
         subtitle: 'Provide a few basic details to check your offer',
-        step: 1,
-        totalSteps: ApplyFlow.totalSteps,
+        stepKey: 'basic',
+        productKey: productKey,
         bottom: PrimaryButton(label: 'Get my offer', loading: busy, onPressed: _submit),
         body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (product['name'] != null) ...[
+            ProductChip(product: product),
+            const SizedBox(height: 18),
+          ],
           AppField(controller: first, label: 'First name', helper: 'As per PAN card', caps: TextCapitalization.words, validator: nameRule),
           AppField(controller: last, label: 'Last name', helper: 'As per PAN card', caps: TextCapitalization.words, validator: nameRule),
           AppField(
@@ -148,7 +157,7 @@ class _BasicInfoScreenState extends State<BasicInfoScreen> {
                     selectedColor: AppColors.primary,
                     labelStyle: TextStyle(fontWeight: FontWeight.w600, color: gender == g.$1 ? Colors.white : AppColors.text),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: gender == g.$1 ? AppColors.primary : AppColors.border)),
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppColors.bg,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
@@ -168,7 +177,7 @@ class _BasicInfoScreenState extends State<BasicInfoScreen> {
           PickerField(label: 'Your employment type', options: s.options('employmentType'), value: employment, onChanged: (v) => employment = v),
           AppField(
             controller: income,
-            label: 'Monthly income (in-hand)',
+            label: '${product['incomeLabel'] ?? 'Monthly income (in-hand)'}',
             keyboardType: TextInputType.number,
             formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
             prefix: const Padding(padding: EdgeInsets.all(14), child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),

@@ -40,6 +40,27 @@ const publicSettings = (s) => ({
     maintenanceMessage: s.maintenanceMessage,
   },
   options: s.options,
+  otpMode: s.otpMode,
+  products: (s.loanProducts || [])
+    .filter((p) => p.active !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((p) => ({
+      key: p.key,
+      name: p.name,
+      tagline: p.tagline,
+      icon: p.icon,
+      color: p.color,
+      minAmount: p.minAmount,
+      maxAmount: p.maxAmount,
+      interestRate: p.interestRate,
+      tenureOptions: p.tenureOptions,
+      processingFeePercent: p.processingFeePercent,
+      minMonthlyIncome: p.minMonthlyIncome,
+      incomeLabel: p.incomeLabel,
+      detailsTitle: p.detailsTitle,
+      steps: p.steps,
+      fields: p.fields || [],
+    })),
 });
 
 const bannerUrl = (req, b) => ({

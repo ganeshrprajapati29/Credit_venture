@@ -72,8 +72,7 @@ class _EmploymentScreenState extends State<EmploymentScreen> {
       child: StepScaffold(
         title: selfEmployed ? 'About your business' : 'About your company',
         subtitle: selfEmployed ? 'Tell us about the business you run' : 'Enter information about the company you work for',
-        step: 4,
-        totalSteps: ApplyFlow.totalSteps,
+        stepKey: 'employment',
         bottom: PrimaryButton(label: 'Continue', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: _submit),
         body: Column(children: [
           AppField(controller: company, label: selfEmployed ? 'Business name' : 'Company name', caps: TextCapitalization.words, validator: (v) => Validators.required(v, 'Company name')),

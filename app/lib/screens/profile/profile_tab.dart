@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/api.dart';
 import '../../core/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
@@ -37,8 +35,8 @@ class ProfileTab extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(name.isEmpty ? 'Complete your profile' : name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-                Text('+91 ${u['mobile'] ?? ''}', style: const TextStyle(color: Color(0xFFC3CBFD))),
-                if ('${u['email'] ?? ''}'.isNotEmpty) Text('${u['email']}', style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 12.5)),
+                Text('+91 ${u['mobile'] ?? ''}', style: const TextStyle(color: AppColors.onHeroMuted)),
+                if ('${u['email'] ?? ''}'.isNotEmpty) Text('${u['email']}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
               ]),
             ),
             IconButton(onPressed: () => _editProfile(context, s), icon: const Icon(Icons.edit_rounded, color: Colors.white)),
@@ -47,7 +45,6 @@ class ProfileTab extends StatelessWidget {
         const SizedBox(height: 18),
         _group([
           _item(Icons.calculate_outlined, 'EMI calculator', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmiCalculatorScreen()))),
-          _item(Icons.lock_reset_rounded, 'Change MPIN', () => _changeMpin(context)),
           _item(Icons.privacy_tip_outlined, 'App permissions', () => openAppSettings()),
         ]),
         const SizedBox(height: 14),
@@ -120,39 +117,6 @@ class ProfileTab extends StatelessWidget {
               try {
                 await s.updateProfile({'fullName': name.text.trim(), 'email': email.text.trim()});
                 if (ctx.mounted) Navigator.pop(ctx);
-              } catch (e) {
-                if (ctx.mounted) showSnack(ctx, errorText(e), error: true);
-              }
-            },
-          ),
-        ]),
-      ),
-    );
-  }
-
-  Future<void> _changeMpin(BuildContext context) async {
-    final oldPin = TextEditingController();
-    final newPin = TextEditingController();
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Change MPIN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 16),
-          AppField(controller: oldPin, label: 'Current MPIN', obscure: true, keyboardType: TextInputType.number, maxLength: 4, formatters: [FilteringTextInputFormatter.digitsOnly]),
-          AppField(controller: newPin, label: 'New MPIN', obscure: true, keyboardType: TextInputType.number, maxLength: 4, formatters: [FilteringTextInputFormatter.digitsOnly]),
-          PrimaryButton(
-            label: 'Update MPIN',
-            onPressed: () async {
-              try {
-                await Api.instance.put('/auth/mpin', {'oldMpin': oldPin.text, 'newMpin': newPin.text});
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  showSnack(context, 'MPIN updated');
-                }
               } catch (e) {
                 if (ctx.mounted) showSnack(ctx, errorText(e), error: true);
               }

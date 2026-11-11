@@ -80,8 +80,7 @@ class _BankScreenState extends State<BankScreen> {
       child: StepScaffold(
         title: 'Add bank account',
         subtitle: 'Loan amount will be credited to this account',
-        step: 7,
-        totalSteps: ApplyFlow.totalSteps,
+        stepKey: 'bank',
         bottom: PrimaryButton(label: 'Save & continue', loading: busy, onPressed: _submit),
         body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           AppField(controller: holder, label: 'Account holder name', helper: 'As per bank records', caps: TextCapitalization.words, validator: (v) => Validators.required(v, 'Account holder name')),

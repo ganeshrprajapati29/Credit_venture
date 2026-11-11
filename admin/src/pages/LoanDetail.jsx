@@ -7,8 +7,9 @@ import { useAuth } from '../lib/auth'
 import { date, dateTime, inr, title } from '../lib/format'
 import { Badge, Button, Card, Field, Input, KV, Modal, SecureFile, Select, Spinner, Table, Textarea, Toggle, cx } from '../components/ui'
 
-const SECTIONS = [
+const BASE_SECTIONS = [
   ['basic', 'Basic details'],
+  ['product', 'Loan details'],
   ['employment', 'Employment'],
   ['address', 'Address'],
   ['kyc', 'KYC documents'],
@@ -24,6 +25,10 @@ export default function LoanDetail() {
   const [remarks, setRemarks] = useState('')
   const [form, setForm] = useState({})
   const [showFull, setShowFull] = useState(false)
+  const [products, setProducts] = useState([])
+  useEffect(() => {
+    get('/admin/settings').then((d) => setProducts(d.settings.loanProducts || [])).catch(() => {})
+  }, [])
 
   const load = useCallback(() => {
     get(`/admin/loans/${id}`)
@@ -39,6 +44,9 @@ export default function LoanDetail() {
   const { loan, payments, previous } = d
   const b = loan.basic || {}
   const manager = can('superadmin', 'manager')
+  const steps = loan.steps?.length ? loan.steps : ['employment']
+  const productDef = products.find((p) => p.key === (loan.product || 'personal'))
+  const SECTIONS = BASE_SECTIONS.filter(([k]) => (k === 'product' ? steps.includes('product') : k === 'employment' ? steps.includes('employment') : true))
 
   const act = async (fn, msg) => {
     setBusy(true)
@@ -81,6 +89,7 @@ export default function LoanDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-extrabold">{b.firstName ? `${b.firstName} ${b.lastName}` : loan.user?.fullName || 'Applicant'}</h2>
               <Badge status={loan.status} />
+              <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-bold text-brand-700">{loan.productName || 'Personal Loan'}</span>
             </div>
             <p className="text-sm text-slate-500">
               {loan.loanNumber} · Applied {dateTime(loan.submittedAt || loan.createdAt)}
@@ -190,6 +199,16 @@ export default function LoanDetail() {
             <KV label="Bureau consent" value={b.consents?.creditBureau ? `Yes · ${date(b.consents.acceptedAt)}` : 'No'} />
           </Section>
 
+          {steps.includes('product') && (
+            <Section title={productDef?.detailsTitle || 'Loan details'} k="product" loan={loan} onVerify={setVerify}>
+              {(productDef?.fields || Object.keys(loan.productDetails || {}).map((key) => ({ key, label: key }))).map((f) => {
+                const v = loan.productDetails?.[f.key]
+                return <KV key={f.key} label={f.label} value={v === undefined || v === '' ? '—' : f.type === 'number' && String(f.label).includes('₹') ? inr(v) : String(v)} />
+              })}
+            </Section>
+          )}
+
+          {steps.includes('employment') && (
           <Section title="Employment" k="employment" loan={loan} onVerify={setVerify}>
             <KV label="Company" value={loan.employment?.companyName} />
             <KV label="Sector" value={loan.employment?.sector} />
@@ -203,6 +222,7 @@ export default function LoanDetail() {
               <KV label="Company address" value={loan.employment?.companyAddress} />
             </div>
           </Section>
+          )}
 
           <Section title="Current address" k="address" loan={loan} onVerify={setVerify}>
             <div className="col-span-2">

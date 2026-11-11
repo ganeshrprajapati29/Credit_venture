@@ -15,7 +15,7 @@ class SubmittedScreen extends StatelessWidget {
     final s = context.watch<AppState>();
     final l = s.loan ?? {};
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

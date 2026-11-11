@@ -99,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     const SizedBox(height: 24),
                     const Text('Credit Ventures', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                     const SizedBox(height: 6),
-                    Text('${s.settings['tagline'] ?? 'Instant personal loans, made simple'}', style: const TextStyle(color: Color(0xFFC3CBFD), fontSize: 14)),
+                    Text('${s.settings['tagline'] ?? 'Instant personal loans, made simple'}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 14)),
                     const SizedBox(height: 48),
                     if (error != null) ...[
                       Padding(

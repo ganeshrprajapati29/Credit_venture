@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { DEFAULT_PRODUCTS } = require('../config/products');
 
 /**
  * Single document (key = 'app') that drives the whole mobile app dynamically.
@@ -141,6 +142,15 @@ const settingSchema = new mongoose.Schema(
     maintenanceMode: { type: Boolean, default: false },
     maintenanceMessage: { type: String, default: 'We are upgrading our systems. Please check back shortly.' },
 
+    // Login OTP: 'demo' shows the OTP on screen (no SMS cost), 'sms' sends it via SMS_PROVIDER
+    otpMode: { type: String, enum: ['demo', 'sms'], default: 'demo' },
+
+    // Loan categories (personal, business, home, gold, vehicle, education)
+    loanProducts: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
+    },
+
     options: {
       type: mongoose.Schema.Types.Mixed,
       default: () => JSON.parse(JSON.stringify(DEFAULT_OPTIONS)),
@@ -154,14 +164,49 @@ settingSchema.statics.get = async function get() {
   if (!s) s = await this.create({ key: 'app' });
   // make sure new option groups added in code reach old documents
   const opts = { ...DEFAULT_OPTIONS, ...(s.options || {}) };
+  let dirty = false;
   if (JSON.stringify(opts) !== JSON.stringify(s.options)) {
     s.options = opts;
     s.markModified('options');
-    await s.save();
+    dirty = true;
   }
+  // add products introduced in code without overwriting admin edits
+  const current = Array.isArray(s.loanProducts) ? s.loanProducts : [];
+  const missing = DEFAULT_PRODUCTS.filter((d) => !current.some((p) => p.key === d.key));
+  if (missing.length || !Array.isArray(s.loanProducts)) {
+    s.loanProducts = [...current, ...JSON.parse(JSON.stringify(missing))];
+    s.markModified('loanProducts');
+    dirty = true;
+  }
+  if (dirty) await s.save();
   return s;
 };
 
 settingSchema.statics.DEFAULT_OPTIONS = DEFAULT_OPTIONS;
+
+/** Product by key (falls back to personal). */
+settingSchema.methods.product = function product(key) {
+  const list = this.loanProducts || [];
+  return list.find((p) => p.key === key) || list.find((p) => p.key === 'personal') || DEFAULT_PRODUCTS[0];
+};
+
+/**
+ * Settings object with the product's pricing applied, used by the EMI / eligibility maths.
+ */
+settingSchema.methods.forProduct = function forProduct(key) {
+  const p = this.product(key);
+  const base = this.toObject();
+  return {
+    ...base,
+    minLoanAmount: p.minAmount ?? base.minLoanAmount,
+    maxLoanAmount: p.maxAmount ?? base.maxLoanAmount,
+    amountStep: p.amountStep ?? base.amountStep,
+    incomeMultiplier: p.incomeMultiplier ?? base.incomeMultiplier,
+    minMonthlyIncome: p.minMonthlyIncome ?? base.minMonthlyIncome,
+    interestRate: p.interestRate ?? base.interestRate,
+    tenureOptions: Array.isArray(p.tenureOptions) && p.tenureOptions.length ? p.tenureOptions : base.tenureOptions,
+    processingFeePercent: p.processingFeePercent ?? base.processingFeePercent,
+  };
+};
 
 module.exports = mongoose.model('Setting', settingSchema);

@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200">
   <ellipse cx="120" cy="178" rx="84" ry="10" fill="#E2E8F0"/>
-  <rect x="58" y="40" width="124" height="130" rx="16" fill="#fff" stroke="#DFE4FF" stroke-width="4"/>
-  <rect x="78" y="66" width="64" height="9" rx="4.5" fill="#C3CBFD"/>
-  <rect x="78" y="86" width="84" height="9" rx="4.5" fill="#EEF1FF"/>
-  <rect x="78" y="106" width="74" height="9" rx="4.5" fill="#EEF1FF"/>
-  <rect x="78" y="126" width="54" height="9" rx="4.5" fill="#EEF1FF"/>
-  <circle cx="176" cy="54" r="24" fill="#3443C9"/>
+  <rect x="58" y="40" width="124" height="130" rx="16" fill="#fff" stroke="#D3EBE0" stroke-width="4"/>
+  <rect x="78" y="66" width="64" height="9" rx="4.5" fill="#A8D8C2"/>
+  <rect x="78" y="86" width="84" height="9" rx="4.5" fill="#E7F3EE"/>
+  <rect x="78" y="106" width="74" height="9" rx="4.5" fill="#E7F3EE"/>
+  <rect x="78" y="126" width="54" height="9" rx="4.5" fill="#E7F3EE"/>
+  <circle cx="176" cy="54" r="24" fill="#17785A"/>
   <path d="M168 54h16M176 46v16" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
 </svg>

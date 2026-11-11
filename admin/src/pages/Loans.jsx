@@ -3,11 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { get, errMsg } from '../lib/api'
 import { date, inr, LOAN_STATUSES, title } from '../lib/format'
-import { Badge, Card, Empty, Input, Pagination, Spinner, Table, cx } from '../components/ui'
+import { Badge, Card, Empty, Input, Pagination, Select, Spinner, Table, cx } from '../components/ui'
 
 export default function Loans() {
   const [params, setParams] = useSearchParams()
   const status = params.get('status') || 'all'
+  const product = params.get('product') || 'all'
+  const [products, setProducts] = useState([])
+  useEffect(() => {
+    get('/admin/settings').then((d) => setProducts(d.settings.loanProducts || [])).catch(() => {})
+  }, [])
   const page = Number(params.get('page') || 1)
   const [search, setSearch] = useState(params.get('search') || '')
   const [data, setData] = useState(null)
@@ -15,10 +20,10 @@ export default function Loans() {
 
   useEffect(() => {
     setData(null)
-    get('/admin/loans', { status, page, search: params.get('search') || undefined, limit: 20 })
+    get('/admin/loans', { status, product, page, search: params.get('search') || undefined, limit: 20 })
       .then(setData)
       .catch((e) => setErr(errMsg(e)))
-  }, [status, page, params])
+  }, [status, product, page, params])
 
   const update = (patch) => {
     const p = Object.fromEntries(params)
@@ -49,6 +54,14 @@ export default function Loans() {
           }}
           className="flex gap-2 border-b border-slate-100 p-4"
         >
+          <Select className="w-44" value={product} onChange={(e) => update({ product: e.target.value === 'all' ? '' : e.target.value, page: '' })}>
+            <option value="all">All loan types</option>
+            {products.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-3 size-4 text-slate-400" />
             <Input className="pl-10" placeholder="Search by name, mobile, loan no. or PAN" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -62,7 +75,7 @@ export default function Loans() {
           <Empty text="No applications found" />
         ) : (
           <>
-            <Table head={['Applicant', 'Loan no.', 'Amount', 'Tenure / EMI', 'Income', 'Applied', 'Status']}>
+            <Table head={['Applicant', 'Loan type', 'Loan no.', 'Amount', 'Tenure / EMI', 'Income', 'Applied', 'Status']}>
               {data.items.map((l) => (
                 <tr key={l._id} className="hover:bg-slate-50">
                   <td className="px-5 py-3">
@@ -71,6 +84,7 @@ export default function Loans() {
                     </Link>
                     <p className="text-xs text-slate-500">+91 {l.user?.mobile}</p>
                   </td>
+                  <td className="px-5 py-3 text-xs font-semibold text-brand-700">{l.productName || 'Personal Loan'}</td>
                   <td className="px-5 py-3 font-mono text-xs">{l.loanNumber}</td>
                   <td className="px-5 py-3 font-semibold">{inr(l.approved?.amount || l.offer?.amount)}</td>
                   <td className="px-5 py-3 text-xs">
