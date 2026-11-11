@@ -68,14 +68,7 @@ class AppState extends ChangeNotifier {
       final di = DeviceInfoPlugin();
       if (Platform.isAndroid) {
         final a = await di.androidInfo;
-        device = {
-          'brand': a.brand,
-          'model': a.model,
-          'os': 'android',
-          'osVersion': a.version.release,
-          'deviceId': a.id,
-          'appVersion': appVersion,
-        };
+        device = {'brand': a.brand, 'model': a.model, 'os': 'android', 'osVersion': a.version.release, 'deviceId': a.id, 'appVersion': appVersion};
       }
     } catch (_) {
       // keep the fallback set above

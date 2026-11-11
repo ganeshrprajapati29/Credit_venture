@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,81 +35,172 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
-    final name = '${s.user?['fullName'] ?? ''}'.split(' ').first;
+    final fullName = '${s.user?['fullName'] ?? ''}'.trim();
+    final name = fullName.split(' ').first;
+    final initials = fullName.isEmpty ? 'CV' : fullName.split(' ').where((e) => e.isNotEmpty).take(2).map((e) => e[0].toUpperCase()).join();
     final cfg = s.loanConfig;
     final tenures = [for (final p in s.products) ...List<num>.from((p['tenureOptions'] as List?)?.map((e) => asNum(e) ?? 0) ?? const [])];
     final maxTen = tenures.isEmpty ? (cfg['tenureOptions'] as List?)?.last ?? 12 : tenures.reduce((a, b) => a > b ? a : b);
     final maxAmt = s.products.fold<num>(asNum(cfg['maxAmount']) ?? 0, (m, p) => (asNum(p['maxAmount']) ?? 0) > m ? asNum(p['maxAmount'])! : m);
+    final rates = [for (final p in s.products) asNum(p['interestRate']) ?? 0].where((r) => r > 0).toList();
+    final minRate = rates.isEmpty ? asNum(cfg['interestRate']) : rates.reduce((a, b) => a < b ? a : b);
+    final top = MediaQuery.of(context).padding.top;
+
     return RefreshIndicator(
       onRefresh: _refresh,
       color: AppColors.primary,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            // header, card and content live in one Column so the card (painted later) overlaps the header
+            // header, card and content share one Column so later children paint over the header
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 14, 12, 90),
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.heroGradient,
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-                  ),
-                  child: Row(
-                    children: [
-                      const BrandLogo(size: 42),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name.isEmpty ? 'Hello there 👋' : 'Hi, $name 👋',
-                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
-                            ),
-                            const Text('Welcome to Credit Ventures', style: TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
-                          ],
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+                  child: Container(
+                    decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+                    child: Stack(
+                      children: [
+                        Positioned(right: -60, top: -40, child: _Bubble(size: 200, opacity: 0.07)),
+                        Positioned(left: -50, bottom: -70, child: _Bubble(size: 180, opacity: 0.05)),
+                        Positioned(right: 30, bottom: 70, child: _Bubble(size: 60, opacity: 0.06)),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(20, top + 14, 10, 104),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                                    ),
+                                    child: Text(
+                                      initials,
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _greeting,
+                                          style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5, fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          name.isEmpty ? 'Welcome 👋' : '$name 👋',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _HeaderIcon(
+                                    icon: Icons.headset_mic_rounded,
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+                                  ),
+                                  _HeaderIcon(
+                                    icon: Icons.notifications_none_rounded,
+                                    badge: s.unread,
+                                    onTap: () =>
+                                        Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())).then((_) => s.refreshUnread()),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              const Text(
+                                'Get instant loans up to',
+                                style: TextStyle(color: AppColors.onHeroMuted, fontSize: 13.5, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                compactInr(maxAmt),
+                                style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -0.8, height: 1.15),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  if (minRate != null) _HeroChip(Icons.percent_rounded, 'Interest from $minRate% p.a.'),
+                                  _HeroChip(Icons.schedule_rounded, 'Up to ${fmtTenure(maxTen)}'),
+                                  const _HeroChip(Icons.bolt_rounded, '100% digital'),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
-                        icon: const Icon(Icons.headset_mic_rounded, color: Colors.white),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())).then((_) => s.refreshUnread()),
-                        icon: Badge(
-                          isLabelVisible: s.unread > 0,
-                          label: Text('${s.unread}'),
-                          child: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 Transform.translate(
-                  offset: const Offset(0, -74),
+                  offset: const Offset(0, -78),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _LoanCard(state: s, onOpenLoans: widget.onOpenLoans),
                   ),
                 ),
                 Transform.translate(
-                  offset: const Offset(0, -56),
+                  offset: const Offset(0, -60),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: SectionCard(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+                          child: Row(
+                            children: [
+                              _QuickAction(Icons.flash_on_rounded, 'Check\neligibility', const Color(0xFF0F4F3C), () => showProductPicker(context)),
+                              _QuickAction(
+                                Icons.calculate_rounded,
+                                'EMI\ncalculator',
+                                const Color(0xFF7C3AED),
+                                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmiCalculatorScreen())),
+                              ),
+                              _QuickAction(Icons.receipt_long_rounded, 'My\nloans', const Color(0xFF0369A1), widget.onOpenLoans),
+                              _QuickAction(
+                                Icons.support_agent_rounded,
+                                'Help &\nsupport',
+                                const Color(0xFFEA580C),
+                                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 26),
                       if (s.products.isNotEmpty) ...[
-                        _sectionTitle('Choose your loan'),
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: ProductGrid(products: s.products)),
-                        const SizedBox(height: 24),
+                        _sectionTitle('Choose your loan', 'Pick what you need, we will do the rest'),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: ProductGrid(products: s.products),
+                        ),
+                        const SizedBox(height: 26),
                       ],
-                      if (s.banners.isNotEmpty) _BannerCarousel(banners: s.banners),
-                      const SizedBox(height: 22),
-                      _sectionTitle('Why Credit Ventures'),
+                      if (s.banners.isNotEmpty) ...[_BannerCarousel(banners: s.banners), const SizedBox(height: 26)],
+                      _sectionTitle('Why Credit Ventures', 'Simple, transparent and secure'),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: GridView.count(
@@ -117,50 +209,48 @@ class _HomeTabState extends State<HomeTab> {
                           physics: const NeverScrollableScrollPhysics(),
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 1.55,
+                          childAspectRatio: 1.3,
                           children: [
                             _Feature(Icons.currency_rupee_rounded, 'Up to ${compactInr(maxAmt)}', 'Loan amount', const Color(0xFF0F4F3C)),
-                            _Feature(
-                              Icons.calendar_month_rounded,
-                              'Up to ${fmtTenure(maxTen)}',
-                              'Flexible tenure',
-                              const Color(0xFF059669),
-                            ),
+                            _Feature(Icons.calendar_month_rounded, 'Up to ${fmtTenure(maxTen)}', 'Flexible tenure', const Color(0xFF0369A1)),
                             const _Feature(Icons.description_outlined, 'Paperless', 'Digital KYC', Color(0xFF7C3AED)),
-                            const _Feature(Icons.verified_user_outlined, 'Secure', 'Encrypted data', Color(0xFFEA580C)),
+                            const _Feature(Icons.visibility_outlined, 'No hidden fees', 'APR shown upfront', Color(0xFFEA580C)),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _sectionTitle('How it works'),
+                      const SizedBox(height: 26),
+                      _sectionTitle('How it works', 'Get your loan in 4 easy steps'),
                       const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: _HowItWorks()),
-                      const SizedBox(height: 20),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _ActionTile(
-                          icon: Icons.calculate_rounded,
-                          title: 'EMI Calculator',
-                          subtitle: 'Plan your loan before you apply',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmiCalculatorScreen())),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _ActionTile(
-                          icon: Icons.support_agent_rounded,
-                          title: 'Need help?',
-                          subtitle: '${s.support['hours'] ?? 'We are here for you'}',
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+                      const SizedBox(height: 26),
+                      const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: _TrustCard()),
+                      const SizedBox(height: 22),
+                      Center(
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const BrandLogo(size: 22),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${s.settings['companyName'] ?? 'Credit Ventures'}',
+                                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            const Text('Made with ❤ in India', style: TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                          ],
                         ),
                       ),
                       if ('${s.settings['lendingPartner'] ?? ''}'.isNotEmpty) ...[
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 10),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Text(
                             'Loans are provided by our lending partner ${s.settings['lendingPartner']}${'${s.settings['nbfcRegistration'] ?? ''}'.isNotEmpty ? ' (Reg. ${s.settings['nbfcRegistration']})' : ''}.',
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                           ),
                         ),
                       ],
@@ -175,10 +265,182 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _sectionTitle(String t) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-    child: Text(t, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+  Widget _sectionTitle(String t, [String? sub]) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(t, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
+        if (sub != null) ...[const SizedBox(height: 2), Text(sub, style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted))],
+      ],
+    ),
   );
+}
+
+/* ----------------------------------------------------------------- header bits */
+
+class _Bubble extends StatelessWidget {
+  final double size;
+  final double opacity;
+  const _Bubble({required this.size, required this.opacity});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Colors.white.withValues(alpha: opacity),
+    ),
+  );
+}
+
+class _HeaderIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final int badge;
+  const _HeaderIcon({required this.icon, required this.onTap, this.badge = 0});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 6),
+    child: Material(
+      color: Colors.white.withValues(alpha: 0.14),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: Center(
+            child: Badge(
+              isLabelVisible: badge > 0,
+              label: Text('$badge'),
+              child: Icon(icon, color: Colors.white, size: 21),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _HeroChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _HeroChip(this.icon, this.text);
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(30)),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFFFDE68A)),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _QuickAction(this.icon, this.label, this.color, this.onTap);
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
+              child: Icon(icon, color: color, size: 23),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.2),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _TrustCard extends StatelessWidget {
+  const _TrustCard();
+  @override
+  Widget build(BuildContext context) {
+    const items = [(Icons.lock_rounded, 'Encrypted'), (Icons.verified_user_rounded, 'Data private'), (Icons.gavel_rounded, 'Fair practices')];
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFE6F4EE), Color(0xFFF4FAF7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFCFE7DC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Your data is safe with us', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    SizedBox(height: 2),
+                    Text('We never access your contacts, SMS or gallery.', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              for (final it in items)
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(it.$1, size: 15, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          it.$2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /* ----------------------------------------------------------------- main loan card */
@@ -202,7 +464,7 @@ class _LoanCard extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(24),
-      boxShadow: const [BoxShadow(color: Color(0x1F141C5C), blurRadius: 30, offset: Offset(0, 12))],
+      boxShadow: const [BoxShadow(color: Color(0x220A3A2C), blurRadius: 30, offset: Offset(0, 12))],
     ),
     padding: const EdgeInsets.all(20),
     child: child,
@@ -216,28 +478,33 @@ class _LoanCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: AppColors.accentSoft, borderRadius: BorderRadius.circular(20)),
-                child: const Text(
-                  'LOANS FOR EVERY NEED',
-                  style: TextStyle(color: AppColors.accentDark, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(color: AppColors.accentSoft, borderRadius: BorderRadius.circular(20)),
+                      child: const Text(
+                        'PRE-APPROVED OFFERS',
+                        style: TextStyle(color: AppColors.accentDark, fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Your loan is just\na few taps away', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.25)),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Check your eligibility in 2 minutes. No paperwork, no branch visit.',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12.5, height: 1.4),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
+              SvgPicture.asset('assets/images/onboard_1.svg', width: 96, height: 96),
             ],
-          ),
-          const SizedBox(height: 14),
-          const Text('Get a loan of up to', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
-          const SizedBox(height: 2),
-          Text(
-            compactInr(state.products.fold<num>(asNum(cfg['maxAmount']) ?? 0, (m, p) => (asNum(p['maxAmount']) ?? 0) > m ? asNum(p['maxAmount'])! : m)),
-            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: -1),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Personal, business, home, gold, vehicle & education loans',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
           ),
           const SizedBox(height: 18),
           PrimaryButton(
@@ -249,9 +516,15 @@ class _LoanCard extends StatelessWidget {
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_rounded, size: 14, color: AppColors.textMuted),
+              Icon(Icons.lock_rounded, size: 13, color: AppColors.textMuted),
               SizedBox(width: 6),
-              Text('Checking your offer will not affect your credit score', style: TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+              Flexible(
+                child: Text(
+                  'Checking your offer will not affect your credit score',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                ),
+              ),
             ],
           ),
         ],
@@ -409,7 +682,10 @@ class _LoanCard extends StatelessWidget {
             style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800),
           ),
           if (next != null)
-            Text('Due on ${fmtDate(next['dueDate'])} · EMI ${next['installmentNo']} of ${schedule.length}', style: const TextStyle(color: AppColors.onHeroSoft)),
+            Text(
+              'Due on ${fmtDate(next['dueDate'])} · EMI ${next['installmentNo']} of ${schedule.length}',
+              style: const TextStyle(color: AppColors.onHeroSoft),
+            ),
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -510,7 +786,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
     return Column(
       children: [
         SizedBox(
-          height: 160,
+          height: 176,
           child: PageView.builder(
             controller: _pc,
             itemCount: widget.banners.length,
@@ -558,7 +834,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
       Positioned(right: 30, bottom: -40, child: CircleAvatar(radius: 50, backgroundColor: Colors.white.withValues(alpha: 0.06))),
       Positioned(right: 18, top: 0, bottom: 0, child: Icon(Icons.currency_rupee_rounded, size: 84, color: Colors.white.withValues(alpha: 0.16))),
       Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -566,15 +842,21 @@ class _BannerCarouselState extends State<_BannerCarousel> {
             Text(
               '${b['title'] ?? ''}',
               maxLines: 2,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2),
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800, height: 1.2),
             ),
             const SizedBox(height: 6),
             SizedBox(
-              width: 220,
-              child: Text('${b['subtitle'] ?? ''}', maxLines: 2, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
+              width: 230,
+              child: Text(
+                '${b['subtitle'] ?? ''}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5, height: 1.35),
+              ),
             ),
             if ('${b['ctaText'] ?? ''}'.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
@@ -620,7 +902,12 @@ class _Feature extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
             ),
-            Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
           ],
         ),
       ],
@@ -674,40 +961,4 @@ class _HowItWorks extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  const _ActionTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(20),
-    child: SectionCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(14)),
-            child: Icon(icon, color: Colors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
-        ],
-      ),
-    ),
-  );
 }

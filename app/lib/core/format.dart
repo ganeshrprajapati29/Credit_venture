@@ -18,11 +18,7 @@ String fmtDateTime(dynamic d) {
   return DateFormat('dd MMM yyyy, hh:mm a').format(dt.toLocal());
 }
 
-String titleCase(String? s) => (s ?? '')
-    .replaceAll('_', ' ')
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
+String titleCase(String? s) => (s ?? '').replaceAll('_', ' ').split(' ').map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
 
 num? asNum(dynamic v) => v is num ? v : num.tryParse('${v ?? ''}');
 
@@ -48,13 +44,12 @@ class Validators {
   static final name = RegExp(r"^[A-Za-z][A-Za-z .'-]{0,59}$");
   static final account = RegExp(r'^\d{9,18}$');
 
-  static String? required(String? v, [String label = 'This field']) =>
-      (v == null || v.trim().isEmpty) ? '$label is required' : null;
+  static String? required(String? v, [String label = 'This field']) => (v == null || v.trim().isEmpty) ? '$label is required' : null;
 
   static String? Function(String?) pattern(RegExp rx, String msg, {bool optional = false}) => (v) {
-        if (v == null || v.trim().isEmpty) return optional ? null : msg;
-        return rx.hasMatch(v.trim()) ? null : msg;
-      };
+    if (v == null || v.trim().isEmpty) return optional ? null : msg;
+    return rx.hasMatch(v.trim()) ? null : msg;
+  };
 
   /// Verhoeff checksum for Aadhaar.
   static bool aadhaar(String n) {

@@ -8,6 +8,7 @@ import '../../core/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../home/home_shell.dart';
+import 'auth_scaffold.dart';
 
 /// Step 2 of login: 6-digit OTP. In demo mode the OTP is shown on screen.
 class OtpScreen extends StatefulWidget {
@@ -98,46 +99,72 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(backgroundColor: AppColors.bg),
-      body: Column(children: [
-        Expanded(
-          child: ListView(padding: const EdgeInsets.fromLTRB(24, 4, 24, 24), children: [
-            const Text('Verify your number', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: Text('Enter the 6 digit OTP sent to +91 ${widget.mobile}', style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+    return AuthScaffold(
+      showBack: true,
+      illustration: 'assets/images/consent.svg',
+      title: 'Verify your\nnumber',
+      subtitle: 'OTP sent to +91 ${widget.mobile.substring(0, 5)} ${widget.mobile.substring(5)}',
+      bottom: PrimaryButton(label: 'Verify & continue', loading: busy, onPressed: _ctrl.text.length == 6 ? _verify : null),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Enter 6 digit OTP', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               ),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Edit')),
-            ]),
-            if (demoOtp != null) ...[
-              const SizedBox(height: 12),
-              _DemoOtpCard(otp: demoOtp!, onUse: _autofill),
+              TextButton.icon(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.edit_rounded, size: 16), label: const Text('Change number')),
             ],
-            const SizedBox(height: 24),
-            _OtpBoxes(controller: _ctrl, focus: _focus, error: error != null, onChanged: (v) {
+          ),
+          if (demoOtp != null) ...[const SizedBox(height: 8), _DemoOtpCard(otp: demoOtp!, onUse: _autofill)],
+          const SizedBox(height: 22),
+          _OtpBoxes(
+            controller: _ctrl,
+            focus: _focus,
+            error: error != null,
+            onChanged: (v) {
               setState(() => error = null);
               if (v.length == 6) _verify();
-            }),
-            const SizedBox(height: 14),
-            if (error != null)
-              Text(error!, style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
+            },
+          ),
+          const SizedBox(height: 14),
+          if (error != null) ...[
+            Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    error!,
+                    style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
-            Row(children: [
-              const Text("Didn't receive the OTP? ", style: TextStyle(color: AppColors.textMuted)),
-              seconds > 0
-                  ? Text('Resend in 00:${seconds.toString().padLeft(2, '0')}', style: const TextStyle(fontWeight: FontWeight.w700))
-                  : GestureDetector(
-                      onTap: _resend,
-                      child: const Text('Resend OTP', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, decoration: TextDecoration.underline)),
+          ],
+          Center(
+            child: seconds > 0
+                ? Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(
+                          text: 'Resend OTP in ',
+                          style: TextStyle(color: AppColors.textMuted),
+                        ),
+                        TextSpan(
+                          text: '00:${seconds.toString().padLeft(2, '0')}',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
                     ),
-            ]),
-          ]),
-        ),
-        BottomAction(child: PrimaryButton(label: 'Verify & continue', loading: busy, onPressed: _ctrl.text.length == 6 ? _verify : null)),
-      ]),
+                  )
+                : TextButton.icon(onPressed: _resend, icon: const Icon(Icons.refresh_rounded), label: const Text('Resend OTP')),
+          ),
+          const SizedBox(height: 18),
+          const InfoBanner(text: 'Never share your OTP with anyone. Credit Ventures staff will never ask for it.', icon: Icons.shield_outlined),
+        ],
+      ),
     );
   }
 }
@@ -157,27 +184,45 @@ class _DemoOtpCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [BoxShadow(color: Color(0x1A000000), blurRadius: 18, offset: Offset(0, 6))],
       ),
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.sms_rounded, color: AppColors.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('CV-CRDVNT · now', style: TextStyle(fontSize: 11.5, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
-            Text.rich(TextSpan(children: [
-              const TextSpan(text: 'Your Credit Ventures OTP is '),
-              TextSpan(text: otp, style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.5, color: AppColors.primary)),
-            ])),
-            const SizedBox(height: 2),
-            const Text('Demo mode – OTP shown on screen', style: TextStyle(fontSize: 11, color: AppColors.warning, fontWeight: FontWeight.w600)),
-          ]),
-        ),
-        TextButton(onPressed: onUse, child: const Text('Auto-fill')),
-      ]),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.sms_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CV-CRDVNT · now',
+                  style: TextStyle(fontSize: 11.5, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'Your Credit Ventures OTP is '),
+                      TextSpan(
+                        text: otp,
+                        style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.5, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Demo mode – OTP shown on screen',
+                  style: TextStyle(fontSize: 11, color: AppColors.warning, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onUse, child: const Text('Auto-fill')),
+        ],
+      ),
     );
   }
 }
@@ -193,48 +238,55 @@ class _OtpBoxes extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => focus.requestFocus(),
-      child: Stack(children: [
-        // invisible field that receives the keyboard input (and SMS autofill)
-        Opacity(
-          opacity: 0,
-          child: TextField(
-            controller: controller,
-            focusNode: focus,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            onChanged: onChanged,
-            decoration: const InputDecoration(counterText: ''),
+      child: Stack(
+        children: [
+          // invisible field that receives the keyboard input (and SMS autofill)
+          Opacity(
+            opacity: 0,
+            child: TextField(
+              controller: controller,
+              focusNode: focus,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: onChanged,
+              decoration: const InputDecoration(counterText: ''),
+            ),
           ),
-        ),
-        ValueListenableBuilder<TextEditingValue>(
-          valueListenable: controller,
-          builder: (_, v, _) => Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (i) {
-              final ch = i < v.text.length ? v.text[i] : '';
-              final active = i == v.text.length && focus.hasFocus;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: 48,
-                height: 56,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0x66FFFFFF),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: error ? AppColors.danger : (active || ch.isNotEmpty ? AppColors.primary : AppColors.border),
-                    width: active ? 2 : 1.2,
-                  ),
+          LayoutBuilder(
+            builder: (_, c) {
+              final boxW = ((c.maxWidth - 5 * 8) / 6).clamp(36.0, 54.0);
+              return ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller,
+                builder: (_, v, _) => Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(6, (i) {
+                    final ch = i < v.text.length ? v.text[i] : '';
+                    final active = i == v.text.length && focus.hasFocus;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: boxW,
+                      height: 56,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: error ? AppColors.danger : (active || ch.isNotEmpty ? AppColors.primary : AppColors.border),
+                          width: active ? 2 : 1.2,
+                        ),
+                      ),
+                      child: Text(ch, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                    );
+                  }),
                 ),
-                child: Text(ch, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
               );
-            }),
+            },
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

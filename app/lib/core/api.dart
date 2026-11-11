@@ -68,15 +68,9 @@ class Api {
         onUnauthorized?.call();
       }
       if (data is Map && data['message'] != null) {
-        throw ApiException(
-          data['message'].toString(),
-          status: status,
-          details: data['details'] is Map ? Map<String, dynamic>.from(data['details']) : null,
-        );
+        throw ApiException(data['message'].toString(), status: status, details: data['details'] is Map ? Map<String, dynamic>.from(data['details']) : null);
       }
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.sendTimeout) {
+      if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout || e.type == DioExceptionType.sendTimeout) {
         throw ApiException('Request timed out. Please check your internet and try again.');
       }
       if (e.error is SocketException || e.type == DioExceptionType.connectionError) {
@@ -86,14 +80,11 @@ class Api {
     }
   }
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) =>
-      _wrap(() => _dio.get(path, queryParameters: query, options: _opts()));
+  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) => _wrap(() => _dio.get(path, queryParameters: query, options: _opts()));
 
-  Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) =>
-      _wrap(() => _dio.post(path, data: body ?? {}, options: _opts()));
+  Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) => _wrap(() => _dio.post(path, data: body ?? {}, options: _opts()));
 
-  Future<Map<String, dynamic>> put(String path, [Map<String, dynamic>? body]) =>
-      _wrap(() => _dio.put(path, data: body ?? {}, options: _opts()));
+  Future<Map<String, dynamic>> put(String path, [Map<String, dynamic>? body]) => _wrap(() => _dio.put(path, data: body ?? {}, options: _opts()));
 
   /// Multipart upload. [files] maps field name -> local file path.
   Future<Map<String, dynamic>> upload(
@@ -110,14 +101,16 @@ class Api {
     for (final e in files.entries) {
       form.files.add(MapEntry(e.key, await MultipartFile.fromFile(e.value, filename: e.value.split('/').last)));
     }
-    return _wrap(() => _dio.request(
-          path,
-          data: form,
-          options: _opts().copyWith(method: method),
-          onSendProgress: (s, t) {
-            if (onProgress != null && t > 0) onProgress(s / t);
-          },
-        ));
+    return _wrap(
+      () => _dio.request(
+        path,
+        data: form,
+        options: _opts().copyWith(method: method),
+        onSendProgress: (s, t) {
+          if (onProgress != null && t > 0) onProgress(s / t);
+        },
+      ),
+    );
   }
 
   /// URL + headers to show a private document with Image.network.

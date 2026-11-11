@@ -126,86 +126,128 @@ class _BasicInfoScreenState extends State<BasicInfoScreen> {
         stepKey: 'basic',
         productKey: productKey,
         bottom: PrimaryButton(label: 'Get my offer', loading: busy, onPressed: _submit),
-        body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (product['name'] != null) ...[
-            ProductChip(product: product),
-            const SizedBox(height: 18),
-          ],
-          AppField(controller: first, label: 'First name', helper: 'As per PAN card', caps: TextCapitalization.words, validator: nameRule),
-          AppField(controller: last, label: 'Last name', helper: 'As per PAN card', caps: TextCapitalization.words, validator: nameRule),
-          AppField(
-            controller: dobCtrl,
-            label: 'Date of birth',
-            readOnly: true,
-            onTap: _pickDob,
-            suffix: const Icon(Icons.calendar_today_rounded, size: 20),
-            validator: (_) => dob == null ? 'Please select your date of birth' : null,
-          ),
-          const Text('Gender', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-          const SizedBox(height: 8),
-          Row(children: [
-            for (final g in const [('male', 'Male', Icons.male_rounded), ('female', 'Female', Icons.female_rounded), ('other', 'Other', Icons.transgender_rounded)])
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    selected: gender == g.$1,
-                    onSelected: (_) => setState(() => gender = g.$1),
-                    avatar: Icon(g.$3, size: 18, color: gender == g.$1 ? Colors.white : AppColors.textMuted),
-                    label: SizedBox(width: double.infinity, child: Text(g.$2)),
-                    showCheckmark: false,
-                    selectedColor: AppColors.primary,
-                    labelStyle: TextStyle(fontWeight: FontWeight.w600, color: gender == g.$1 ? Colors.white : AppColors.text),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: gender == g.$1 ? AppColors.primary : AppColors.border)),
-                    backgroundColor: AppColors.bg,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (product['name'] != null) ...[ProductChip(product: product), const SizedBox(height: 18)],
+            AppField(controller: first, label: 'First name', helper: 'As per PAN card', caps: TextCapitalization.words, validator: nameRule),
+            AppField(controller: last, label: 'Last name', helper: 'As per PAN card', caps: TextCapitalization.words, validator: nameRule),
+            AppField(
+              controller: dobCtrl,
+              label: 'Date of birth',
+              readOnly: true,
+              onTap: _pickDob,
+              suffix: const Icon(Icons.calendar_today_rounded, size: 20),
+              validator: (_) => dob == null ? 'Please select your date of birth' : null,
+            ),
+            const Text(
+              'Gender',
+              style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (final g in const [
+                  ('male', 'Male', Icons.male_rounded),
+                  ('female', 'Female', Icons.female_rounded),
+                  ('other', 'Other', Icons.transgender_rounded),
+                ])
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        selected: gender == g.$1,
+                        onSelected: (_) => setState(() => gender = g.$1),
+                        avatar: Icon(g.$3, size: 18, color: gender == g.$1 ? Colors.white : AppColors.textMuted),
+                        label: SizedBox(width: double.infinity, child: Text(g.$2)),
+                        showCheckmark: false,
+                        selectedColor: AppColors.primary,
+                        labelStyle: TextStyle(fontWeight: FontWeight.w600, color: gender == g.$1 ? Colors.white : AppColors.text),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: gender == g.$1 ? AppColors.primary : AppColors.border),
+                        ),
+                        backgroundColor: AppColors.bg,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
                   ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AppField(
+              controller: email,
+              label: 'Email address',
+              keyboardType: TextInputType.emailAddress,
+              validator: Validators.pattern(Validators.email, 'Enter a valid email'),
+            ),
+            PickerField(label: 'Education', options: s.options('education'), value: education, onChanged: (v) => education = v),
+            PickerField(label: 'Marital status', options: s.options('maritalStatus'), value: marital, onChanged: (v) => marital = v),
+            AppField(
+              controller: amount,
+              label: 'Preferred loan amount (optional)',
+              keyboardType: TextInputType.number,
+              formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
+              prefix: const Padding(
+                padding: EdgeInsets.all(14),
+                child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            PickerField(label: 'Your employment type', options: s.options('employmentType'), value: employment, onChanged: (v) => employment = v),
+            AppField(
+              controller: income,
+              label: '${product['incomeLabel'] ?? 'Monthly income (in-hand)'}',
+              keyboardType: TextInputType.number,
+              formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
+              prefix: const Padding(
+                padding: EdgeInsets.all(14),
+                child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              ),
+              validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter your monthly income' : null,
+            ),
+            PickerField(label: 'How do you get your salary?', options: s.options('salaryMode'), value: salaryMode, onChanged: (v) => salaryMode = v),
+            const SizedBox(height: 4),
+            ConsentTile(
+              value: cBureau,
+              onChanged: (v) => setState(() => cBureau = v),
+              text: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'I agree to the T&Cs of CIBIL, Equifax, Experian and CRIF (credit bureaus) and consent to Credit Ventures and its lending partner fetching my credit information to evaluate this application. ',
+                    ),
+                    WidgetSpan(
+                      child: GestureDetector(
+                        onTap: () => LegalScreen.open(context, terms: true),
+                        child: const Text(
+                          'Read terms',
+                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, fontSize: 13.5),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ]),
-          const SizedBox(height: 16),
-          AppField(controller: email, label: 'Email address', keyboardType: TextInputType.emailAddress, validator: Validators.pattern(Validators.email, 'Enter a valid email')),
-          PickerField(label: 'Education', options: s.options('education'), value: education, onChanged: (v) => education = v),
-          PickerField(label: 'Marital status', options: s.options('maritalStatus'), value: marital, onChanged: (v) => marital = v),
-          AppField(
-            controller: amount,
-            label: 'Preferred loan amount (optional)',
-            keyboardType: TextInputType.number,
-            formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
-            prefix: const Padding(padding: EdgeInsets.all(14), child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
-          ),
-          PickerField(label: 'Your employment type', options: s.options('employmentType'), value: employment, onChanged: (v) => employment = v),
-          AppField(
-            controller: income,
-            label: '${product['incomeLabel'] ?? 'Monthly income (in-hand)'}',
-            keyboardType: TextInputType.number,
-            formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
-            prefix: const Padding(padding: EdgeInsets.all(14), child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
-            validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter your monthly income' : null,
-          ),
-          PickerField(label: 'How do you get your salary?', options: s.options('salaryMode'), value: salaryMode, onChanged: (v) => salaryMode = v),
-          const SizedBox(height: 4),
-          ConsentTile(
-            value: cBureau,
-            onChanged: (v) => setState(() => cBureau = v),
-            text: Text.rich(TextSpan(children: [
-              const TextSpan(text: 'I agree to the T&Cs of CIBIL, Equifax, Experian and CRIF (credit bureaus) and consent to Credit Ventures and its lending partner fetching my credit information to evaluate this application. '),
-              WidgetSpan(
-                child: GestureDetector(
-                  onTap: () => LegalScreen.open(context, terms: true),
-                  child: const Text('Read terms', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, fontSize: 13.5)),
-                ),
+            ),
+            ConsentTile(
+              value: cCkyc,
+              onChanged: (v) => setState(() => cCkyc = v),
+              text: const Text(
+                "I authorise Credit Ventures' lending partner to download my KYC records from the CKYC Registry and update them if I provide changes in this application.",
               ),
-            ])),
-          ),
-          ConsentTile(
-            value: cCkyc,
-            onChanged: (v) => setState(() => cCkyc = v),
-            text: const Text("I authorise Credit Ventures' lending partner to download my KYC records from the CKYC Registry and update them if I provide changes in this application."),
-          ),
-          ConsentTile(value: cIncome, onChanged: (v) => setState(() => cIncome = v), text: const Text('I confirm that my household income is above ₹3,00,000 per annum.')),
-          ConsentTile(value: cDisability, onChanged: (v) => setState(() => cDisability = v), text: const Text('I declare that I do not have any disability that requires special assistance for this application.')),
-        ]),
+            ),
+            ConsentTile(
+              value: cIncome,
+              onChanged: (v) => setState(() => cIncome = v),
+              text: const Text('I confirm that my household income is above ₹3,00,000 per annum.'),
+            ),
+            ConsentTile(
+              value: cDisability,
+              onChanged: (v) => setState(() => cDisability = v),
+              text: const Text('I declare that I do not have any disability that requires special assistance for this application.'),
+            ),
+          ],
+        ),
       ),
     );
   }

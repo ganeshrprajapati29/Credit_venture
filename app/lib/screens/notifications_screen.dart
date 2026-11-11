@@ -47,11 +47,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   IconData _icon(String t) => switch (t) {
-        'loan' => Icons.account_balance_wallet_rounded,
-        'payment' => Icons.payments_rounded,
-        'offer' => Icons.local_offer_rounded,
-        _ => Icons.notifications_rounded,
-      };
+    'loan' => Icons.account_balance_wallet_rounded,
+    'payment' => Icons.payments_rounded,
+    'offer' => Icons.local_offer_rounded,
+    _ => Icons.notifications_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -64,40 +64,67 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: error != null
-            ? ListView(children: [SizedBox(height: 480, child: ErrorView(message: error!, onRetry: _load))])
+            ? ListView(
+                children: [
+                  SizedBox(
+                    height: 480,
+                    child: ErrorView(message: error!, onRetry: _load),
+                  ),
+                ],
+              )
             : items == null
-                ? const LoadingView()
-                : items!.isEmpty
-                    ? ListView(children: const [EmptyView(title: 'No notifications', subtitle: 'Updates about your loan will appear here')])
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                        itemCount: items!.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) {
-                          final n = items![i];
-                          final unread = n['read'] != true;
-                          return SectionCard(
-                            color: unread ? const Color(0xFFF4FAF7) : Colors.white,
-                            padding: const EdgeInsets.all(14),
-                            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              CircleAvatar(backgroundColor: AppColors.primarySoft, child: Icon(_icon('${n['type']}'), color: AppColors.primary, size: 20)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Row(children: [
-                                    Expanded(child: Text('${n['title']}', style: const TextStyle(fontWeight: FontWeight.w800))),
-                                    if (unread) Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle)),
-                                  ]),
-                                  const SizedBox(height: 3),
-                                  Text('${n['body']}', style: const TextStyle(color: Color(0xFF334155), height: 1.4)),
-                                  const SizedBox(height: 6),
-                                  Text(fmtDateTime(n['createdAt']), style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
-                                ]),
+            ? const LoadingView()
+            : items!.isEmpty
+            ? ListView(
+                children: const [EmptyView(title: 'No notifications', subtitle: 'Updates about your loan will appear here')],
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                itemCount: items!.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) {
+                  final n = items![i];
+                  final unread = n['read'] != true;
+                  return SectionCard(
+                    color: unread ? const Color(0xFFF4FAF7) : Colors.white,
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: AppColors.primarySoft,
+                          child: Icon(_icon('${n['type']}'), color: AppColors.primary, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text('${n['title']}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                                  ),
+                                  if (unread)
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
+                                    ),
+                                ],
                               ),
-                            ]),
-                          );
-                        },
-                      ),
+                              const SizedBox(height: 3),
+                              Text('${n['body']}', style: const TextStyle(color: Color(0xFF334155), height: 1.4)),
+                              const SizedBox(height: 6),
+                              Text(fmtDateTime(n['createdAt']), style: const TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }

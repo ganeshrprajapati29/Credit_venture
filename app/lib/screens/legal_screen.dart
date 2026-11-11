@@ -30,9 +30,10 @@ class LegalScreen extends StatelessWidget {
         : '$company collects only the information required to process your loan: details you enter, KYC documents you upload, device information and (if permitted) approximate location. We do not access your contacts, SMS, call logs or media. Data is transmitted over HTTPS, stored securely, shared only with our lending partner and credit bureaus with your consent, and retained as required by law. Contact our grievance officer for any concern.';
     return Scaffold(
       appBar: AppBar(title: Text(terms ? 'Terms of Service' : 'Privacy Policy')),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
-        Text(text.isEmpty ? fallback : text, style: const TextStyle(height: 1.6, fontSize: 14.5, color: AppColors.text)),
-      ]),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [Text(text.isEmpty ? fallback : text, style: const TextStyle(height: 1.6, fontSize: 14.5, color: AppColors.text))],
+      ),
     );
   }
 }

@@ -99,7 +99,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       maxLength: type == 'pincode' ? 6 : null,
       caps: isNum ? TextCapitalization.none : (f['pattern'] != null ? TextCapitalization.characters : TextCapitalization.words),
       formatters: isNum ? [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(type == 'pincode' ? 6 : 12)] : null,
-      prefix: label.contains('₹') ? const Padding(padding: EdgeInsets.all(14), child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))) : null,
+      prefix: label.contains('₹')
+          ? const Padding(
+              padding: EdgeInsets.all(14),
+              child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            )
+          : null,
       validator: (v) {
         if (serverErrors[k] != null) return serverErrors[k];
         final t = (v ?? '').trim();

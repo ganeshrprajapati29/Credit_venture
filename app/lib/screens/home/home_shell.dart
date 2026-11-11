@@ -20,23 +20,21 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
-    final pages = [
-      HomeTab(onOpenLoans: () => setState(() => index = 1)),
-      const LoansTab(),
-      const NotificationsScreen(embedded: true),
-      const ProfileTab(),
-    ];
+    final pages = [HomeTab(onOpenLoans: () => setState(() => index = 1)), const LoansTab(), const NotificationsScreen(embedded: true), const ProfileTab()];
     return Scaffold(
       body: IndexedStack(index: index, children: pages),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          backgroundColor: AppColors.bg,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           indicatorColor: AppColors.primarySoft,
-          labelTextStyle: WidgetStateProperty.resolveWith((st) => TextStyle(
-                fontSize: 12,
-                fontWeight: st.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
-                color: st.contains(WidgetState.selected) ? AppColors.primary : AppColors.textMuted,
-              )),
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (st) => TextStyle(
+              fontSize: 12,
+              fontWeight: st.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+              color: st.contains(WidgetState.selected) ? AppColors.primary : AppColors.textMuted,
+            ),
+          ),
           iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(color: st.contains(WidgetState.selected) ? AppColors.primary : AppColors.textMuted)),
         ),
         child: NavigationBar(
@@ -50,7 +48,11 @@ class _HomeShellState extends State<HomeShell> {
           },
           destinations: [
             const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-            const NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: 'My Loans'),
+            const NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+              label: 'My Loans',
+            ),
             NavigationDestination(
               icon: Badge(isLabelVisible: s.unread > 0, label: Text('${s.unread}'), child: const Icon(Icons.notifications_outlined)),
               selectedIcon: const Icon(Icons.notifications_rounded),

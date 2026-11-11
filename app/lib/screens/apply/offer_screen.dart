@@ -83,7 +83,11 @@ class _OfferScreenState extends State<OfferScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Promo / referral code'),
-        content: TextField(controller: ctrl, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(hintText: 'Enter code')),
+        content: TextField(
+          controller: ctrl,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(hintText: 'Enter code'),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Apply')),
@@ -123,105 +127,139 @@ class _OfferScreenState extends State<OfferScreen> {
       subtitle: 'Choose the amount and EMI that suits you',
       stepKey: 'offer',
       bottom: PrimaryButton(label: 'Confirm and proceed', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: quote == null ? null : _confirm),
-      body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(24)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Choose your loan amount', style: TextStyle(color: AppColors.onHeroMuted, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(inr(amount.round()), style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1)),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: const Color(0xFF6EE7B7),
-                inactiveTrackColor: Colors.white24,
-                thumbColor: Colors.white,
-                overlayColor: Colors.white24,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
-              ),
-              child: Slider(
-                min: minA.toDouble(),
-                max: maxA.toDouble() <= minA.toDouble() ? minA.toDouble() + 1 : maxA.toDouble(),
-                divisions: divisions > 0 ? divisions : null,
-                value: amount,
-                onChanged: maxA <= minA ? null : _onAmount,
-              ),
-            ),
-            Row(children: [
-              Text('Min ${inr(minA)}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
-              const Spacer(),
-              Text('Max ${inr(maxA)}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
-            ]),
-          ]),
-        ),
-        const SizedBox(height: 22),
-        Row(children: [
-          const Expanded(child: Text('Loan tenure', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-          const Text('EMI', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-          if (loadingQuote) const Padding(padding: EdgeInsets.only(left: 8), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))),
-        ]),
-        const SizedBox(height: 12),
-        for (final t in visible)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                setState(() => tenure = (t['months'] as num).toInt());
-                _fetchQuoteOnly();
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                decoration: BoxDecoration(
-                  color: tenure == t['months'] ? AppColors.primarySoft : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: tenure == t['months'] ? AppColors.primaryDeep : AppColors.border, width: tenure == t['months'] ? 2 : 1),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(24)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Choose your loan amount',
+                  style: TextStyle(color: AppColors.onHeroMuted, fontWeight: FontWeight.w600),
                 ),
-                child: Row(children: [
-                  Icon(tenure == t['months'] ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: tenure == t['months'] ? AppColors.primaryDeep : AppColors.textMuted),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(fmtTenure(t['months']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-                  Text(inr(t['emi']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                ]),
+                const SizedBox(height: 4),
+                Text(
+                  inr(amount.round()),
+                  style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1),
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: const Color(0xFF6EE7B7),
+                    inactiveTrackColor: Colors.white24,
+                    thumbColor: Colors.white,
+                    overlayColor: Colors.white24,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+                  ),
+                  child: Slider(
+                    min: minA.toDouble(),
+                    max: maxA.toDouble() <= minA.toDouble() ? minA.toDouble() + 1 : maxA.toDouble(),
+                    divisions: divisions > 0 ? divisions : null,
+                    value: amount,
+                    onChanged: maxA <= minA ? null : _onAmount,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text('Min ${inr(minA)}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
+                    const Spacer(),
+                    Text('Max ${inr(maxA)}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 12.5)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Loan tenure', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              ),
+              const Text('EMI', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              if (loadingQuote)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (final t in visible)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  setState(() => tenure = (t['months'] as num).toInt());
+                  _fetchQuoteOnly();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: tenure == t['months'] ? AppColors.primarySoft : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: tenure == t['months'] ? AppColors.primaryDeep : AppColors.border, width: tenure == t['months'] ? 2 : 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        tenure == t['months'] ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                        color: tenure == t['months'] ? AppColors.primaryDeep : AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(fmtTenure(t['months']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                      Text(inr(t['emi']), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        if (tenures.length > 2)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => setState(() => showAll = !showAll),
-              icon: Icon(showAll ? Icons.expand_less_rounded : Icons.expand_more_rounded),
-              label: Text(showAll ? 'Show less' : 'See ${tenures.length - 2} more'),
+          if (tenures.length > 2)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => setState(() => showAll = !showAll),
+                icon: Icon(showAll ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                label: Text(showAll ? 'Show less' : 'See ${tenures.length - 2} more'),
+              ),
+            ),
+          if (quote != null) ...[
+            const SizedBox(height: 8),
+            SectionCard(
+              child: Column(
+                children: [
+                  KeyValueRow('Loan amount', inr(quote!['amount'])),
+                  KeyValueRow('Interest rate', '${quote!['interestRate']}% p.a. (reducing)'),
+                  KeyValueRow('Total interest', inr(quote!['totalInterest'])),
+                  KeyValueRow('Processing fee', inr(quote!['processingFee'])),
+                  KeyValueRow('GST on fee', inr(quote!['gstOnFee'])),
+                  const Divider(height: 18),
+                  KeyValueRow('Amount you receive', inr(quote!['disbursalAmount']), bold: true),
+                  KeyValueRow('Total repayable', inr(quote!['totalPayable']), bold: true),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: _promo,
+            child: Text(
+              promo.isEmpty ? 'Have a promo/referral code?' : 'Promo code: $promo (change)',
+              style: const TextStyle(decoration: TextDecoration.underline),
             ),
           ),
-        if (quote != null) ...[
-          const SizedBox(height: 8),
-          SectionCard(
-            child: Column(children: [
-              KeyValueRow('Loan amount', inr(quote!['amount'])),
-              KeyValueRow('Interest rate', '${quote!['interestRate']}% p.a. (reducing)'),
-              KeyValueRow('Total interest', inr(quote!['totalInterest'])),
-              KeyValueRow('Processing fee', inr(quote!['processingFee'])),
-              KeyValueRow('GST on fee', inr(quote!['gstOnFee'])),
-              const Divider(height: 18),
-              KeyValueRow('Amount you receive', inr(quote!['disbursalAmount']), bold: true),
-              KeyValueRow('Total repayable', inr(quote!['totalPayable']), bold: true),
-            ]),
+          const InfoBanner(
+            icon: Icons.info_outline_rounded,
+            text: 'The loan amount and EMI shown are indicative. The final offer is confirmed after document verification and shown in your loan agreement before you sign.',
           ),
         ],
-        const SizedBox(height: 6),
-        TextButton(
-          onPressed: _promo,
-          child: Text(promo.isEmpty ? 'Have a promo/referral code?' : 'Promo code: $promo (change)', style: const TextStyle(decoration: TextDecoration.underline)),
-        ),
-        const InfoBanner(
-          icon: Icons.info_outline_rounded,
-          text: 'The loan amount and EMI shown are indicative. The final offer is confirmed after document verification and shown in your loan agreement before you sign.',
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -234,27 +272,40 @@ class _StepsSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-            child: const Icon(Icons.rocket_launch_rounded, color: AppColors.primary, size: 34),
-          ),
-          const SizedBox(height: 18),
-          const Text('Great! You are just 4 steps away from getting the loan', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3)),
-          const SizedBox(height: 18),
-          for (var i = 0; i < steps.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(children: [
-                CircleAvatar(radius: 14, backgroundColor: const Color(0xFFF1F5F9), child: Text('${i + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text))),
-                const SizedBox(width: 14),
-                Text(steps[i], style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
-              ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+              child: const Icon(Icons.rocket_launch_rounded, color: AppColors.primary, size: 34),
             ),
-          const SizedBox(height: 18),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Let's go")),
-        ]),
+            const SizedBox(height: 18),
+            const Text('Great! You are just 4 steps away from getting the loan', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3)),
+            const SizedBox(height: 18),
+            for (var i = 0; i < steps.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      child: Text(
+                        '${i + 1}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Text(steps[i], style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 18),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Let's go")),
+          ],
+        ),
       ),
     );
   }

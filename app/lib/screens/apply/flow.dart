@@ -66,7 +66,9 @@ class ApplyFlow {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Application in progress'),
-          content: Text('You have an incomplete ${loan['productName'] ?? 'loan'} application. Continue it, or start a ${s.product(productKey)?['name'] ?? 'new'} application instead?'),
+          content: Text(
+            'You have an incomplete ${loan['productName'] ?? 'loan'} application. Continue it, or start a ${s.product(productKey)?['name'] ?? 'new'} application instead?',
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, 'new'), child: const Text('Start new')),
             TextButton(onPressed: () => Navigator.pop(ctx, 'continue'), child: const Text('Continue')),

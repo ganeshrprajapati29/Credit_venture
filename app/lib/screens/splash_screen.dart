@@ -69,11 +69,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     } else {
       next = const HomeShell();
     }
-    Navigator.of(context).pushReplacement(PageRouteBuilder(
-      pageBuilder: (_, _, _) => next,
-      transitionsBuilder: (_, a, _, child) => FadeTransition(opacity: a, child: child),
-      transitionDuration: const Duration(milliseconds: 400),
-    ));
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) => next,
+        transitionsBuilder: (_, a, _, child) => FadeTransition(opacity: a, child: child),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
   }
 
   @override
@@ -82,52 +84,81 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.heroGradient),
-        child: Stack(children: [
-          Positioned(top: -80, right: -60, child: _circle(220, 0.06)),
-          Positioned(bottom: -100, left: -80, child: _circle(280, 0.05)),
-          SafeArea(
-            child: Center(
-              child: FadeTransition(
-                opacity: CurvedAnimation(parent: _c, curve: Curves.easeOut),
-                child: ScaleTransition(
-                  scale: Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack)),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 30, offset: Offset(0, 12))]),
-                      child: const BrandLogo(size: 104),
+        child: Stack(
+          children: [
+            Positioned(top: -80, right: -60, child: _circle(220, 0.06)),
+            Positioned(bottom: -100, left: -80, child: _circle(280, 0.05)),
+            SafeArea(
+              child: Center(
+                child: FadeTransition(
+                  opacity: CurvedAnimation(parent: _c, curve: Curves.easeOut),
+                  child: ScaleTransition(
+                    scale: Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack)),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 30, offset: Offset(0, 12))],
+                          ),
+                          child: const BrandLogo(size: 104),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Credit Ventures',
+                          style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${s.settings['tagline'] ?? 'Instant personal loans, made simple'}',
+                          style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 14),
+                        ),
+                        const SizedBox(height: 48),
+                        if (error != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40),
+                            child: Text(
+                              error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: _boot,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.white.withValues(alpha: 0.15),
+                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                            ),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Try again'),
+                          ),
+                        ] else if (blocker != null)
+                          _Blocker(kind: blocker!, state: s, onRetry: _boot)
+                        else
+                          const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)),
+                      ],
                     ),
-                    const SizedBox(height: 24),
-                    const Text('Credit Ventures', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                    const SizedBox(height: 6),
-                    Text('${s.settings['tagline'] ?? 'Instant personal loans, made simple'}', style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 14)),
-                    const SizedBox(height: 48),
-                    if (error != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 40),
-                        child: Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: _boot,
-                        style: TextButton.styleFrom(foregroundColor: Colors.white, backgroundColor: Colors.white.withValues(alpha: 0.15), padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Try again'),
-                      ),
-                    ] else if (blocker != null)
-                      _Blocker(kind: blocker!, state: s, onRetry: _boot)
-                    else
-                      const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)),
-                  ]),
+                  ),
                 ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _circle(double size, double o) => Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: o)));
+  Widget _circle(double size, double o) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Colors.white.withValues(alpha: o),
+    ),
+  );
 }
 
 class _Blocker extends StatelessWidget {
@@ -144,22 +175,25 @@ class _Blocker extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 28),
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(maintenance ? Icons.construction_rounded : Icons.system_update_rounded, size: 44, color: AppColors.primary),
-        const SizedBox(height: 12),
-        Text(maintenance ? 'Under maintenance' : 'Update required', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        Text(
-          maintenance ? '${state.appInfo['maintenanceMessage'] ?? ''}' : 'A new version of Credit Ventures is available. Please update to continue.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.textMuted),
-        ),
-        const SizedBox(height: 18),
-        PrimaryButton(
-          label: maintenance ? 'Retry' : 'Update now',
-          onPressed: maintenance || apk.isEmpty ? onRetry : () => launchUrl(Uri.parse(apk), mode: LaunchMode.externalApplication),
-        ),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(maintenance ? Icons.construction_rounded : Icons.system_update_rounded, size: 44, color: AppColors.primary),
+          const SizedBox(height: 12),
+          Text(maintenance ? 'Under maintenance' : 'Update required', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(
+            maintenance ? '${state.appInfo['maintenanceMessage'] ?? ''}' : 'A new version of Credit Ventures is available. Please update to continue.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 18),
+          PrimaryButton(
+            label: maintenance ? 'Retry' : 'Update now',
+            onPressed: maintenance || apk.isEmpty ? onRetry : () => launchUrl(Uri.parse(apk), mode: LaunchMode.externalApplication),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -26,9 +26,7 @@ class CreditVenturesApp extends StatelessWidget {
       theme: AppTheme.light(),
       builder: (context, child) => MediaQuery(
         // keep layouts stable on devices with very large font scaling
-        data: MediaQuery.of(context).copyWith(
-          textScaler: MediaQuery.of(context).textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.2),
-        ),
+        data: MediaQuery.of(context).copyWith(textScaler: MediaQuery.of(context).textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.2)),
         child: child!,
       ),
       home: const SplashScreen(),
