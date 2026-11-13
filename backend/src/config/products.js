@@ -12,6 +12,8 @@ const BUSINESS_TYPES = ['Proprietorship', 'Partnership', 'Private Limited', 'LLP
 const DEFAULT_PRODUCTS = [
   {
     key: 'personal',
+    reviewSteps: ['Document verification', 'Credit check'], // shown to the customer while the application is pending
+    minProcessingFee: 499,
     name: 'Personal Loan',
     tagline: 'Instant cash for any personal need',
     icon: 'personal',
@@ -33,6 +35,8 @@ const DEFAULT_PRODUCTS = [
   },
   {
     key: 'business',
+    reviewSteps: ['Document verification', 'Business verification', 'Credit check'], // shown to the customer while the application is pending
+    minProcessingFee: 1999,
     name: 'Business Loan',
     tagline: 'Grow your business with working capital',
     icon: 'business',
@@ -71,6 +75,8 @@ const DEFAULT_PRODUCTS = [
   },
   {
     key: 'home',
+    reviewSteps: ['Document verification', 'Property verification', 'Legal & technical check'], // shown to the customer while the application is pending
+    minProcessingFee: 4999,
     name: 'Home Loan',
     tagline: 'Buy, build or renovate your dream home',
     icon: 'home',
@@ -101,6 +107,8 @@ const DEFAULT_PRODUCTS = [
   },
   {
     key: 'gold',
+    reviewSteps: ['Document verification', 'Gold valuation'], // shown to the customer while the application is pending
+    minProcessingFee: 299,
     name: 'Gold Loan',
     tagline: 'Quick money against your gold',
     icon: 'gold',
@@ -127,6 +135,8 @@ const DEFAULT_PRODUCTS = [
   },
   {
     key: 'vehicle',
+    reviewSteps: ['Document verification', 'Dealer verification', 'Credit check'], // shown to the customer while the application is pending
+    minProcessingFee: 999,
     name: 'Vehicle Loan',
     tagline: 'Finance your bike or car',
     icon: 'vehicle',
@@ -156,6 +166,8 @@ const DEFAULT_PRODUCTS = [
   },
   {
     key: 'education',
+    reviewSteps: ['Document verification', 'Admission verification', 'Credit check'], // shown to the customer while the application is pending
+    minProcessingFee: 999,
     name: 'Education Loan',
     tagline: 'Invest in your future studies',
     icon: 'education',

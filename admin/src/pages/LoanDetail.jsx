@@ -26,8 +26,15 @@ export default function LoanDetail() {
   const [form, setForm] = useState({})
   const [showFull, setShowFull] = useState(false)
   const [products, setProducts] = useState([])
+  const [gst, setGst] = useState(18)
+  const [stageForm, setStageForm] = useState(null)
   useEffect(() => {
-    get('/admin/settings').then((d) => setProducts(d.settings.loanProducts || [])).catch(() => {})
+    get('/admin/settings')
+      .then((d) => {
+        setProducts(d.settings.loanProducts || [])
+        setGst(Number(d.settings.gstPercent ?? 18))
+      })
+      .catch(() => {})
   }, [])
 
   const load = useCallback(() => {
@@ -55,8 +62,10 @@ export default function LoanDetail() {
       toast.success(r.message || msg)
       setModal(null)
       load()
+      return true
     } catch (e) {
       toast.error(errMsg(e))
+      return false
     } finally {
       setBusy(false)
     }
@@ -65,14 +74,43 @@ export default function LoanDetail() {
   const setVerify = (k, v) => act(() => send('patch', `/admin/loans/${id}/verification`, { [k]: v }), 'Updated')
   const setStatus = (status, extra = {}) => act(() => send('patch', `/admin/loans/${id}/status`, { status, ...extra }))
 
+  const suggestFee = (amount) => {
+    const pct = Number(productDef?.processingFeePercent ?? 0)
+    const base = Math.max(Number(productDef?.minProcessingFee ?? 0), (Number(amount || 0) * pct) / 100)
+    return Math.round(base * (1 + gst / 100))
+  }
   const openApprove = () => {
-    setForm({ amount: loan.offer?.amount, tenureMonths: loan.offer?.tenureMonths, interestRate: loan.offer?.interestRate, processingFee: loan.offer?.totalFee, remarks: '' })
+    setForm({
+      amount: loan.offer?.amount,
+      tenureMonths: loan.offer?.tenureMonths,
+      interestRate: loan.offer?.interestRate ?? productDef?.interestRate,
+      processingFee: loan.offer?.totalFee ?? suggestFee(loan.offer?.amount),
+      remarks: '',
+    })
     setModal('approve')
   }
+  const fee = loan.feePayment || {}
+  const feeReady = !fee.required || ['verified', 'waived'].includes(fee.status)
   const openDisburse = () => {
-    setForm({ amount: (loan.approved?.amount || 0) - (loan.approved?.processingFee || 0), utr: '', mode: 'IMPS', date: new Date().toISOString().slice(0, 10) })
+    const full = (fee.required && fee.status === 'verified') || fee.status === 'waived' || !loan.approved?.processingFee
+    setForm({
+      amount: full ? loan.approved?.amount : (loan.approved?.amount || 0) - (loan.approved?.processingFee || 0),
+      utr: '',
+      mode: 'IMPS',
+      date: new Date().toISOString().slice(0, 10),
+    })
     setModal('disburse')
   }
+  const reviewSteps = productDef?.reviewSteps?.length ? productDef.reviewSteps : ['Document verification']
+  const pending = ['submitted', 'under_review'].includes(loan.status)
+  const emiPreview = (() => {
+    const P = Number(form.amount || 0)
+    const n = Number(form.tenureMonths || 0)
+    const r = Number(form.interestRate || 0) / 1200
+    if (!P || !n) return null
+    const emi = r ? Math.ceil((P * r * (1 + r) ** n) / ((1 + r) ** n - 1)) : Math.ceil(P / n)
+    return { emi, total: emi * n }
+  })()
 
   const mask = (s) => (showFull || !s ? s : `${'•'.repeat(Math.max(0, String(s).length - 4))}${String(s).slice(-4)}`)
   const allVerified = SECTIONS.every(([k]) => loan.verification?.[k])
@@ -120,7 +158,7 @@ export default function LoanDetail() {
               <Button variant="outline" icon={XCircle} onClick={() => { setForm({ remarks: '' }); setModal('reject') }}>
                 Reject
               </Button>
-              <Button icon={Banknote} onClick={openDisburse}>
+              <Button icon={Banknote} onClick={openDisburse} disabled={!feeReady} title={feeReady ? '' : 'Verify the processing fee first'}>
                 Mark disbursed
               </Button>
             </>
@@ -301,6 +339,64 @@ export default function LoanDetail() {
         </div>
 
         <div className="space-y-6">
+          {pending && (
+            <Card title="Application status (shown in app)">
+              <div className="space-y-3 p-5">
+                <ol className="space-y-2">
+                  {['Application submitted', ...reviewSteps].map((label, i) => {
+                    const cur = loan.status === 'submitted' ? -1 : loan.stage ?? 0
+                    const done = i === 0 || i - 1 < cur
+                    const active = i - 1 === cur
+                    return (
+                      <li key={i} className="flex items-center gap-2.5 text-sm">
+                        {done ? <CheckCircle2 className="size-4 text-emerald-500" /> : <Circle className={cx('size-4', active ? 'text-brand-600' : 'text-slate-300')} />}
+                        <span className={cx(active ? 'font-bold text-brand-700' : done ? 'text-slate-700' : 'text-slate-400')}>{label}</span>
+                        {active && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-700">CURRENT</span>}
+                      </li>
+                    )
+                  })}
+                </ol>
+                {loan.stageNote && <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Note: {loan.stageNote}</p>}
+                <Button size="sm" variant="outline" className="w-full" onClick={() => setStageForm({ stage: loan.status === 'submitted' ? 0 : Math.min(reviewSteps.length - 1, (loan.stage ?? 0) + 1), note: '' })}>
+                  Update status
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {loan.status === 'approved' && fee.required && (
+            <Card title="Processing fee (QR payment)">
+              <div className="space-y-3 p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-extrabold">{inr(fee.amount)}</span>
+                  <Badge status={fee.status === 'submitted' ? 'pending' : fee.status === 'unpaid' ? 'draft' : fee.status}>
+                    {{ unpaid: 'Awaiting payment', submitted: 'To verify', verified: 'Verified', rejected: 'Rejected', waived: 'Waived' }[fee.status]}
+                  </Badge>
+                </div>
+                {fee.utr && <KV label="UTR" value={fee.utr} mono />}
+                {fee.submittedAt && <KV label="Paid on" value={dateTime(fee.submittedAt)} />}
+                {fee.remarks && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{fee.remarks}</p>}
+                {fee.proof?.filename && <SecureFile file={fee.proof} label="Payment screenshot" />}
+                {manager && fee.status === 'submitted' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="danger" onClick={() => { setForm({ remarks: '' }); setModal('feeReject') }}>
+                      Reject
+                    </Button>
+                    <Button size="sm" variant="success" loading={busy} onClick={() => act(() => send('patch', `/admin/loans/${id}/fee`, { status: 'verified' }))}>
+                      Verify payment
+                    </Button>
+                  </div>
+                )}
+                {manager && ['unpaid', 'rejected'].includes(fee.status) && (
+                  <Button size="sm" variant="ghost" className="w-full" onClick={() => act(() => send('patch', `/admin/loans/${id}/fee`, { status: 'waived' }))}>
+                    Waive processing fee
+                  </Button>
+                )}
+                {!feeReady && <p className="text-xs text-slate-500">Disbursal unlocks after the fee is verified or waived.</p>}
+              </div>
+            </Card>
+          )}
+
           <Card title="Verification checklist">
             <div className="space-y-1 p-3">
               {SECTIONS.map(([k, l]) => (
@@ -419,9 +515,16 @@ export default function LoanDetail() {
         }
       >
         {!allVerified && <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">Some verification checks are still pending.</p>}
+        <p className="mb-4 text-xs text-slate-500">
+          Customer applied for <b>{inr(loan.offer?.amount)}</b> for <b>{loan.offer?.tenureMonths} months</b>. You decide the final terms below.
+        </p>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Approved amount (₹)">
-            <Input type="number" value={form.amount ?? ''} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+          <Field label="Final approved amount (₹)">
+            <Input
+              type="number"
+              value={form.amount ?? ''}
+              onChange={(e) => setForm({ ...form, amount: e.target.value, processingFee: suggestFee(e.target.value) })}
+            />
           </Field>
           <Field label="Tenure (months)">
             <Input type="number" value={form.tenureMonths ?? ''} onChange={(e) => setForm({ ...form, tenureMonths: e.target.value })} />
@@ -429,13 +532,77 @@ export default function LoanDetail() {
           <Field label="Interest rate (% p.a.)">
             <Input type="number" step="0.01" value={form.interestRate ?? ''} onChange={(e) => setForm({ ...form, interestRate: e.target.value })} />
           </Field>
-          <Field label="Processing fee incl. GST (₹)">
+          <Field label="Processing fee incl. GST (₹)" hint="Customer pays this by QR in the app. 0 = no fee">
             <Input type="number" value={form.processingFee ?? ''} onChange={(e) => setForm({ ...form, processingFee: e.target.value })} />
           </Field>
-          <Field label="Remarks" className="col-span-2">
+          {emiPreview && (
+            <div className="col-span-2 grid grid-cols-3 gap-2 rounded-xl bg-emerald-50 p-3 text-center">
+              <div>
+                <p className="text-[11px] text-emerald-700">EMI</p>
+                <p className="font-extrabold">{inr(emiPreview.emi)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-emerald-700">Total repayable</p>
+                <p className="font-extrabold">{inr(emiPreview.total)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-emerald-700">Fee to collect</p>
+                <p className="font-extrabold">{inr(form.processingFee || 0)}</p>
+              </div>
+            </div>
+          )}
+          <Field label="Remarks (shown to customer)" className="col-span-2">
             <Textarea value={form.remarks || ''} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
           </Field>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!stageForm}
+        onClose={() => setStageForm(null)}
+        title="Update application status"
+        footer={
+          <Button
+            loading={busy}
+            onClick={() =>
+              act(() => send('patch', `/admin/loans/${id}/stage`, stageForm)).then((done) => done && setStageForm(null))
+            }
+          >
+            Update & notify customer
+          </Button>
+        }
+      >
+        {stageForm && (
+          <div className="space-y-4">
+            <Field label="Current step" hint={`Steps for ${loan.productName || 'this loan'} can be edited in Settings → Loan products`}>
+              <Select value={stageForm.stage} onChange={(e) => setStageForm({ ...stageForm, stage: Number(e.target.value) })}>
+                {reviewSteps.map((s, i) => (
+                  <option key={i} value={i}>
+                    {i + 1}. {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Message to customer (optional)">
+              <Textarea placeholder="e.g. Please keep your original PAN card ready for the verification call" value={stageForm.note} onChange={(e) => setStageForm({ ...stageForm, note: e.target.value })} />
+            </Field>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={modal === 'feeReject'}
+        onClose={() => setModal(null)}
+        title="Reject processing fee payment"
+        footer={
+          <Button variant="danger" loading={busy} onClick={() => act(() => send('patch', `/admin/loans/${id}/fee`, { status: 'rejected', remarks: form.remarks }))}>
+            Reject payment
+          </Button>
+        }
+      >
+        <Field label="Reason (shown to customer)">
+          <Textarea value={form.remarks || ''} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="e.g. UTR not found in our bank statement" />
+        </Field>
       </Modal>
 
       <Modal

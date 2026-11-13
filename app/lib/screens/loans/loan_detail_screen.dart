@@ -6,6 +6,7 @@ import '../../core/app_state.dart';
 import '../../core/format.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/loan_tracker.dart';
 import 'payment_screen.dart';
 
 class LoanDetailScreen extends StatefulWidget {
@@ -129,6 +130,21 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             if (status == 'rejected' && l['rejectionReason'] != null) ...[
               const SizedBox(height: 14),
               InfoBanner(text: 'Reason: ${l['rejectionReason']}', icon: Icons.info_outline_rounded, color: AppColors.danger),
+            ],
+            if (status == 'approved') ...[
+              const SizedBox(height: 16),
+              SectionCard(child: ApprovedOfferCard(loan: l, onPaid: _load)),
+            ],
+            if (['submitted', 'under_review', 'approved', 'disbursed'].contains(status)) ...[
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(child: Text('Application status', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17))),
+                  StatusLabel(text: loanStatusLabel(l, context.read<AppState>().product('${l['product']}'))),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SectionCard(child: LoanTracker(loan: l, product: context.read<AppState>().product('${l['product']}'))),
             ],
             if (l['disbursal'] is Map && l['disbursal']['utr'] != null) ...[
               const SizedBox(height: 16),

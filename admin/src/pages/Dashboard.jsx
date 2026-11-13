@@ -27,7 +27,9 @@ export default function Dashboard() {
         <Stat label="Customers" value={d.users} icon={Users} tone="sky" sub={`+${d.usersToday} today`} />
         <Stat label="Total disbursed" value={inr(d.disbursedAmount)} icon={Banknote} tone="green" sub={`Principal ${inr(d.disbursedPrincipal)}`} />
         <Stat label="EMI collected" value={inr(d.collectedAmount)} icon={IndianRupee} />
-        <Stat label="Payments to verify" value={d.pendingPayments} icon={Clock} tone="amber" />
+        <Link to="/loans?feeStatus=submitted">
+          <Stat label="Processing fees to verify" value={d.pendingFees ?? 0} icon={Clock} tone="amber" sub={`${d.pendingPayments} EMI payments to verify`} />
+        </Link>
         <Stat label="Overdue EMIs" value={d.overdue.count} icon={AlertTriangle} tone="rose" sub={inr(d.overdue.amount)} />
       </div>
 

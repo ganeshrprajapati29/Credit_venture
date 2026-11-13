@@ -100,9 +100,15 @@ const EDITABLE = [
   'options',
   'otpMode',
   'loanProducts',
+  'feePayment',
 ];
 
-exports.getSettings = asyncHandler(async (_req, res) => ok(res, { settings: await Setting.get() }));
+const qrUrl = (req, s) => (s.feePayment?.qrImage ? `${req.protocol}://${req.get('host')}/uploads/public/${s.feePayment.qrImage}` : null);
+
+exports.getSettings = asyncHandler(async (req, res) => {
+  const s = await Setting.get();
+  ok(res, { settings: s, feeQrUrl: qrUrl(req, s) });
+});
 
 exports.updateSettings = asyncHandler(async (req, res) => {
   const s = await Setting.get();
@@ -122,6 +128,17 @@ exports.updateSettings = asyncHandler(async (req, res) => {
     body.options = { ...s.options, ...clean };
   }
   if (body.otpMode && !['demo', 'sms'].includes(body.otpMode)) throw ApiError.badRequest('Invalid OTP mode');
+  if (body.feePayment) {
+    const f = body.feePayment;
+    const upi = String(f.upiId || '').trim();
+    if (upi && !/^[\w.-]{2,256}@[a-zA-Z][a-zA-Z0-9.-]{1,64}$/.test(upi)) throw ApiError.badRequest('Enter a valid UPI ID (e.g. business@okaxis)');
+    body.feePayment = {
+      upiId: upi,
+      payeeName: String(f.payeeName || '').trim().slice(0, 80),
+      instructions: String(f.instructions || '').slice(0, 1000),
+      qrImage: s.feePayment?.qrImage || '', // changed only through the upload endpoint
+    };
+  }
   if (body.loanProducts) {
     if (!Array.isArray(body.loanProducts) || !body.loanProducts.length) throw ApiError.badRequest('Add at least one loan product');
     const { ALL_STEPS } = require('../../config/products');
@@ -139,6 +156,10 @@ exports.updateSettings = asyncHandler(async (req, res) => {
       });
       steps = ALL_STEPS.filter((x) => steps.includes(x)); // keep canonical order
       const fields = (p.fields || []).filter((f) => f && f.key && f.label);
+      const reviewSteps = (Array.isArray(p.reviewSteps) ? p.reviewSteps : [])
+        .map((x) => String(x).trim())
+        .filter(Boolean)
+        .slice(0, 10);
       if (steps.includes('product') && !fields.length) steps = steps.filter((x) => x !== 'product');
       return {
         ...p,
@@ -151,6 +172,8 @@ exports.updateSettings = asyncHandler(async (req, res) => {
         minMonthlyIncome: num(p.minMonthlyIncome, 0),
         interestRate: num(p.interestRate, 0),
         processingFeePercent: num(p.processingFeePercent, 0),
+        minProcessingFee: num(p.minProcessingFee, 0),
+        reviewSteps: reviewSteps.length ? reviewSteps : ['Document verification'],
         tenureOptions: tenures,
         steps,
         fields,
@@ -163,6 +186,25 @@ exports.updateSettings = asyncHandler(async (req, res) => {
   if (body.loanProducts) s.markModified('loanProducts');
   await s.save();
   ok(res, { settings: s }, 'Settings saved');
+});
+
+/* ---------------------------------------------------------------- processing fee QR image */
+
+exports.uploadFeeQr = asyncHandler(async (req, res) => {
+  if (!req.file) throw ApiError.badRequest('Please choose a QR image (PNG / JPG)');
+  const s = await Setting.get();
+  if (s.feePayment?.qrImage) removeFile(PUBLIC_DIR, s.feePayment.qrImage);
+  s.set('feePayment.qrImage', req.file.filename);
+  await s.save();
+  ok(res, { settings: s, feeQrUrl: qrUrl(req, s) }, 'QR code uploaded');
+});
+
+exports.deleteFeeQr = asyncHandler(async (req, res) => {
+  const s = await Setting.get();
+  if (s.feePayment?.qrImage) removeFile(PUBLIC_DIR, s.feePayment.qrImage);
+  s.set('feePayment.qrImage', '');
+  await s.save();
+  ok(res, { settings: s, feeQrUrl: null }, 'QR code removed');
 });
 
 /* ---------------------------------------------------------------- banners */

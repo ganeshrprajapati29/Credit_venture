@@ -58,6 +58,7 @@ router.post('/loans/current/submit', requireUser, loan.submit);
 router.get('/loans/:id', requireUser, loan.detail);
 router.post('/loans/:id/cancel', requireUser, loan.cancel);
 router.post('/loans/:id/payments', requireUser, privateUpload.single('proof'), loan.submitPayment);
+router.post('/loans/:id/fee-payment', requireUser, privateUpload.single('proof'), loan.submitFeePayment);
 
 /* ------------------------------------------------------------- notifications & files */
 router.get('/notifications', requireUser, misc.listNotifications);
@@ -82,6 +83,8 @@ admin.patch('/loans/:id', managers, aLoan.editApplication);
 admin.patch('/loans/:id/verification', staff, aLoan.updateVerification);
 admin.patch('/loans/:id/remarks', staff, aLoan.updateRemarks);
 admin.patch('/loans/:id/status', managers, aLoan.updateStatus);
+admin.patch('/loans/:id/stage', staff, aLoan.updateStage);
+admin.patch('/loans/:id/fee', managers, aLoan.reviewFee);
 admin.post('/loans/:id/disburse', managers, aLoan.disburse);
 admin.patch('/loans/:id/installments/:no', managers, aLoan.markInstallment);
 
@@ -94,6 +97,8 @@ admin.patch('/users/:id', managers, aMisc.updateUser);
 
 admin.get('/settings', staff, aMisc.getSettings);
 admin.put('/settings', superadmin, aMisc.updateSettings);
+admin.post('/settings/fee-qr', superadmin, publicUpload.single('image'), aMisc.uploadFeeQr);
+admin.delete('/settings/fee-qr', superadmin, aMisc.deleteFeeQr);
 
 admin.get('/banners', staff, aMisc.listBanners);
 admin.post('/banners', managers, publicUpload.single('image'), aMisc.createBanner);

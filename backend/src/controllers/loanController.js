@@ -422,6 +422,9 @@ exports.submit = asyncHandler(async (req, res) => {
   loan.status = 'submitted';
   loan.currentStep = 'done';
   loan.submittedAt = new Date();
+  loan.stage = 0;
+  loan.stageNote = 'We have received your application';
+  loan.stageUpdatedAt = new Date();
   loan.addHistory('submitted', 'user', 'Application submitted');
   await loan.save();
   ok(res, { loan: forUser(loan) }, 'Application submitted successfully');
@@ -435,6 +438,43 @@ exports.cancel = asyncHandler(async (req, res) => {
   loan.addHistory('cancelled', 'user', req.body.reason || 'Cancelled by user');
   await loan.save();
   ok(res, { loan: forUser(loan) }, 'Application cancelled');
+});
+
+/* ---------------------------------------------------------------- processing fee (QR payment after approval) */
+
+exports.submitFeePayment = asyncHandler(async (req, res) => {
+  const proof = req.file;
+  try {
+    const loan = await Loan.findOne({ _id: req.params.id, user: req.user._id });
+    if (!loan) throw ApiError.notFound('Loan not found');
+    const fp = loan.feePayment || {};
+    if (loan.status !== 'approved' || !fp.required) throw ApiError.badRequest('No processing fee is due on this loan');
+    if (!['unpaid', 'rejected'].includes(fp.status)) throw ApiError.badRequest('Your payment is already submitted for verification');
+    validate(req.body, {
+      utr: { required: true, label: 'UTR / Transaction ID', rx: /^[A-Za-z0-9]{6,30}$/, msg: 'Enter a valid UTR / transaction ID' },
+    });
+    if (!proof) throw ApiError.badRequest('Please upload the payment screenshot');
+    const utr = String(req.body.utr).toUpperCase();
+    const dupFee = await Loan.exists({ _id: { $ne: loan._id }, 'feePayment.utr': utr, 'feePayment.status': { $in: ['submitted', 'verified'] } });
+    const dupEmi = await Payment.exists({ utr, status: { $ne: 'rejected' } });
+    if (dupFee || dupEmi) throw ApiError.conflict('This UTR has already been used');
+    if (fp.proof?.filename) removeFile(PRIVATE_DIR, fp.proof.filename);
+    loan.feePayment = {
+      ...(fp.toObject ? fp.toObject() : fp),
+      status: 'submitted',
+      utr,
+      mode: req.body.mode || 'upi',
+      proof: fileMeta(proof),
+      submittedAt: new Date(),
+      remarks: undefined,
+    };
+    loan.addHistory('approved', 'user', `Processing fee paid, UTR ${utr}`);
+    await loan.save();
+    ok(res, { loan: forUser(loan) }, 'Payment submitted. We will verify it shortly.');
+  } catch (e) {
+    if (proof) removeFile(PRIVATE_DIR, proof.filename);
+    throw e;
+  }
 });
 
 /* ---------------------------------------------------------------- repayments (manual) */

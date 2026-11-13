@@ -142,6 +142,17 @@ const settingSchema = new mongoose.Schema(
     maintenanceMode: { type: Boolean, default: false },
     maintenanceMessage: { type: String, default: 'We are upgrading our systems. Please check back shortly.' },
 
+    // Processing fee collection (customer pays by scanning a UPI QR in the app before disbursal)
+    feePayment: {
+      upiId: { type: String, default: '' }, // empty = demo QR
+      payeeName: { type: String, default: 'Credit Ventures Pvt. Ltd.' },
+      qrImage: { type: String, default: '' }, // optional uploaded QR image (uploads/public)
+      instructions: {
+        type: String,
+        default: 'Scan the QR with any UPI app (GPay, PhonePe, Paytm), pay the exact processing fee and upload the payment screenshot with the UTR number.',
+      },
+    },
+
     // Login OTP: 'demo' shows the OTP on screen (no SMS cost), 'sms' sends it via SMS_PROVIDER
     otpMode: { type: String, enum: ['demo', 'sms'], default: 'demo' },
 
@@ -178,7 +189,22 @@ settingSchema.statics.get = async function get() {
     s.markModified('loanProducts');
     dirty = true;
   }
-  if (dirty) await s.save();
+  const defaultsByKey = Object.fromEntries(DEFAULT_PRODUCTS.map((d) => [d.key, d]));
+  (s.loanProducts || []).forEach((p) => {
+    const d = defaultsByKey[p.key];
+    if (!Array.isArray(p.reviewSteps)) {
+      p.reviewSteps = d ? [...d.reviewSteps] : ['Document verification', 'Credit check'];
+      dirty = true;
+    }
+    if (p.minProcessingFee === undefined) {
+      p.minProcessingFee = d ? d.minProcessingFee : 0;
+      dirty = true;
+    }
+  });
+  if (dirty) {
+    s.markModified('loanProducts');
+    await s.save();
+  }
   return s;
 };
 
@@ -206,6 +232,7 @@ settingSchema.methods.forProduct = function forProduct(key) {
     interestRate: p.interestRate ?? base.interestRate,
     tenureOptions: Array.isArray(p.tenureOptions) && p.tenureOptions.length ? p.tenureOptions : base.tenureOptions,
     processingFeePercent: p.processingFeePercent ?? base.processingFeePercent,
+    minProcessingFee: p.minProcessingFee ?? base.minProcessingFee,
   };
 };
 

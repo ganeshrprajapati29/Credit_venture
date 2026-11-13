@@ -34,6 +34,8 @@ export const STATUS_STYLE = {
   overdue: 'bg-rose-50 text-rose-700',
   active: 'bg-emerald-50 text-emerald-700',
   blocked: 'bg-rose-50 text-rose-700',
+  waived: 'bg-sky-50 text-sky-700',
+  unpaid: 'bg-slate-100 text-slate-600',
 }
 
 export const LOAN_STATUSES = ['submitted', 'under_review', 'approved', 'disbursed', 'closed', 'rejected', 'cancelled', 'draft']

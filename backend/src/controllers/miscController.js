@@ -50,6 +50,7 @@ exports.getFile = asyncHandler(async (req, res) => {
         { 'kyc.selfie.filename': name },
         { 'kyc.salarySlip.filename': name },
         { 'bank.bankProof.filename': name },
+        { 'feePayment.proof.filename': name },
       ],
     });
     const inPayment = inLoan ? true : await Payment.exists({ user: uid, 'proof.filename': name });

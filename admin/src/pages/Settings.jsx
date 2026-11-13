@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { ChevronDown, Plus, Save, Trash2, X } from 'lucide-react'
-import { get, send, errMsg } from '../lib/api'
+import { api, get, send, errMsg } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { inr, title } from '../lib/format'
 import { Button, Card, Field, Input, Select, Spinner, Textarea, Toggle, cx } from '../components/ui'
 
-const TABS = ['Loan products', 'Pricing defaults', 'Company & support', 'Repayment', 'Dropdown options', 'Legal', 'App']
+const TABS = ['Loan products', 'Fee payment QR', 'Pricing defaults', 'Company & support', 'Repayment', 'Dropdown options', 'Legal', 'App']
 
 export default function Settings() {
   const { can } = useAuth()
   const [s, setS] = useState(null)
   const [tab, setTab] = useState(TABS[0])
   const [busy, setBusy] = useState(false)
+  const [qrUrl, setQrUrl] = useState(null)
   const readOnly = !can('superadmin')
 
   useEffect(() => {
     get('/admin/settings')
-      .then((d) => setS(d.settings))
+      .then((d) => {
+        setS(d.settings)
+        setQrUrl(d.feeQrUrl)
+      })
       .catch((e) => toast.error(errMsg(e)))
   }, [])
 
@@ -79,6 +83,73 @@ export default function Settings() {
       {readOnly && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700">Only a super admin can change settings.</p>}
 
       {tab === 'Loan products' && <ProductsEditor products={s.loanProducts || []} readOnly={readOnly} onChange={(v) => set('loanProducts', v)} />}
+
+      {tab === 'Fee payment QR' && (
+        <Card>
+          <div className="grid gap-6 p-5 lg:grid-cols-3">
+            <div className="space-y-5 lg:col-span-2">
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                After approval the customer pays the processing fee by scanning this QR in the app, then uploads the screenshot + UTR. You verify it in the loan page before disbursal.
+                {!s.feePayment?.upiId && !qrUrl && <b> Right now the app shows a DEMO QR – add your UPI ID or upload your QR to go live.</b>}
+              </p>
+              <Field label="UPI ID" hint="e.g. yourbusiness@okaxis – the app generates a QR with the exact fee amount from this">
+                <Input disabled={readOnly} value={s.feePayment?.upiId || ''} onChange={(e) => setNested('feePayment', 'upiId', e.target.value.trim())} />
+              </Field>
+              <Field label="Payee name">
+                <Input disabled={readOnly} value={s.feePayment?.payeeName || ''} onChange={(e) => setNested('feePayment', 'payeeName', e.target.value)} />
+              </Field>
+              <Field label="Instructions shown in app">
+                <Textarea disabled={readOnly} value={s.feePayment?.instructions || ''} onChange={(e) => setNested('feePayment', 'instructions', e.target.value)} />
+              </Field>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-600">QR image (optional)</p>
+              <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50">
+                {qrUrl ? <img src={qrUrl} alt="Payment QR" className="h-full w-full object-contain" /> : <span className="px-6 text-center text-xs text-slate-400">No image. The app will generate a QR from the UPI ID (or a demo QR).</span>}
+              </div>
+              {!readOnly && (
+                <div className="mt-3 flex gap-2">
+                  <label className="flex-1">
+                    <span className="inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-xl bg-brand-700 text-xs font-semibold text-white hover:bg-brand-800">Upload QR</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0]
+                        if (!f) return
+                        const fd = new FormData()
+                        fd.append('image', f)
+                        try {
+                          const r = await api.post('/admin/settings/fee-qr', fd)
+                          setQrUrl(r.data.data.feeQrUrl)
+                          toast.success('QR uploaded')
+                        } catch (err) {
+                          toast.error(errMsg(err))
+                        }
+                      }}
+                    />
+                  </label>
+                  {qrUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await api.delete('/admin/settings/fee-qr')
+                        setQrUrl(null)
+                        toast.success('QR removed')
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              )}
+              <p className="mt-2 text-[11px] text-slate-400">Upload + Save are separate: the image saves instantly, the text fields save with “Save changes”.</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {tab === 'Pricing defaults' && (
         <Card>
@@ -315,6 +386,7 @@ function ProductsEditor({ products, onChange, readOnly }) {
                   {num('minMonthlyIncome', 'Min monthly income (₹)')}
                   {num('interestRate', 'Interest (% p.a.)', null, 0.05)}
                   {num('processingFeePercent', 'Processing fee (%)', null, 0.05)}
+                  {num('minProcessingFee', 'Min processing fee (₹)')}
                   {num('order', 'Display order')}
                   <Field label="Tenure options (months)" hint="Comma separated, e.g. 12, 24, 36" className="sm:col-span-2">
                     <Input
@@ -327,6 +399,14 @@ function ProductsEditor({ products, onChange, readOnly }) {
                     <Input disabled={readOnly} value={p.incomeLabel || ''} onChange={(e) => upd(i, { incomeLabel: e.target.value })} />
                   </Field>
                 </div>
+
+                <Field label="Status steps shown to customer while pending" hint="Comma separated, in order. You move the application through these from the loan page.">
+                  <Input
+                    disabled={readOnly}
+                    value={(p.reviewSteps || []).join(', ')}
+                    onChange={(e) => upd(i, { reviewSteps: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })}
+                  />
+                </Field>
 
                 <div>
                   <p className="mb-2 text-sm font-bold text-slate-700">Application steps</p>

@@ -7,7 +7,8 @@ import { Badge, Card, Empty, Input, Pagination, Select, Spinner, Table, cx } fro
 
 export default function Loans() {
   const [params, setParams] = useSearchParams()
-  const status = params.get('status') || 'all'
+  const feeStatus = params.get('feeStatus') || ''
+  const status = feeStatus ? 'fee' : params.get('status') || 'all'
   const product = params.get('product') || 'all'
   const [products, setProducts] = useState([])
   useEffect(() => {
@@ -20,10 +21,10 @@ export default function Loans() {
 
   useEffect(() => {
     setData(null)
-    get('/admin/loans', { status, product, page, search: params.get('search') || undefined, limit: 20 })
+    get('/admin/loans', { status: feeStatus ? undefined : status, feeStatus: feeStatus || undefined, product, page, search: params.get('search') || undefined, limit: 20 })
       .then(setData)
       .catch((e) => setErr(errMsg(e)))
-  }, [status, product, page, params])
+  }, [status, feeStatus, product, page, params])
 
   const update = (patch) => {
     const p = Object.fromEntries(params)
@@ -38,12 +39,18 @@ export default function Loans() {
         {['all', ...LOAN_STATUSES].map((s) => (
           <button
             key={s}
-            onClick={() => update({ status: s === 'all' ? '' : s, page: '' })}
+            onClick={() => update({ status: s === 'all' ? '' : s, feeStatus: '', page: '' })}
             className={cx('rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer', status === s ? 'bg-brand-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50')}
           >
             {s === 'all' ? 'All (excl. drafts)' : title(s)}
           </button>
         ))}
+        <button
+          onClick={() => update({ feeStatus: 'submitted', status: '', page: '' })}
+          className={cx('rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer', status === 'fee' ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100')}
+        >
+          Processing fee to verify
+        </button>
       </div>
 
       <Card>
@@ -94,6 +101,11 @@ export default function Loans() {
                   <td className="px-5 py-3 text-xs text-slate-500">{date(l.submittedAt || l.createdAt)}</td>
                   <td className="px-5 py-3">
                     <Badge status={l.status} />
+                    {l.status === 'approved' && l.feePayment?.status && (
+                      <p className="mt-1 text-[11px] font-semibold text-amber-700">
+                        Fee: {{ unpaid: 'awaiting payment', submitted: 'to verify', verified: 'verified', rejected: 'rejected', waived: 'waived' }[l.feePayment.status]}
+                      </p>
+                    )}
                     {l.status === 'draft' && <p className="mt-1 text-[11px] text-slate-400">at: {title(l.currentStep)}</p>}
                   </td>
                 </tr>

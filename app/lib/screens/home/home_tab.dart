@@ -10,6 +10,7 @@ import '../../core/app_state.dart';
 import '../../core/format.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/loan_tracker.dart';
 import '../apply/flow.dart';
 import '../apply/product_screen.dart';
 import '../emi_calculator_screen.dart';
@@ -581,60 +582,60 @@ class _LoanCard extends StatelessWidget {
 
   Widget _trackCard(BuildContext context, Map<String, dynamic> loan) {
     final status = '${loan['status']}';
-    const steps = ['submitted', 'under_review', 'approved', 'disbursed'];
-    final idx = steps.indexOf(status);
-    final labels = ['Submitted', 'Verification', 'Approved', 'Disbursed'];
-    final msg = {
-      'submitted': 'We have received your application. Our team will start verification shortly.',
-      'under_review': 'Our team is verifying your documents. This usually takes a few hours.',
-      'approved': 'Congratulations! Your loan of ${inr(dig(loan, 'approved.amount'))} is approved and will be credited to your bank soon.',
-    }[status];
+    final product = state.product('${loan['product']}');
+    final approved = status == 'approved';
+    final label = loanStatusLabel(loan, product);
     return _shell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  inr(dig(loan, 'approved.amount') ?? dig(loan, 'offer.amount')),
-                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: productColor(product).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                child: Icon(productIcon('${loan['product']}'), color: productColor(product), size: 22),
               ),
-              StatusChip(status),
-            ],
-          ),
-          Text('Application ${loan['loanNumber']}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12.5)),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              for (var i = 0; i < steps.length; i++) ...[
-                Column(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 13,
-                      backgroundColor: i <= idx ? AppColors.accent : const Color(0xFFE2E8F0),
-                      child: Icon(i <= idx ? Icons.check_rounded : Icons.circle, size: i <= idx ? 16 : 8, color: i <= idx ? Colors.white : Colors.white),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        inr(dig(loan, 'approved.amount') ?? dig(loan, 'offer.amount')),
+                        maxLines: 1,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark, height: 1.1),
+                      ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 3),
                     Text(
-                      labels[i],
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: i <= idx ? AppColors.text : AppColors.textMuted),
+                      '${loan['productName'] ?? 'Loan'} · ${loan['loanNumber']}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
-                if (i < steps.length - 1)
-                  Expanded(
-                    child: Container(height: 3, margin: const EdgeInsets.only(bottom: 20), color: i < idx ? AppColors.accent : const Color(0xFFE2E8F0)),
-                  ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              _LabelChip(label: label, approved: approved),
             ],
           ),
-          if (msg != null) ...[const SizedBox(height: 14), InfoBanner(text: msg, icon: Icons.info_outline_rounded)],
+          const SizedBox(height: 18),
+          if (approved) ...[
+            ApprovedOfferCard(loan: loan, onPaid: () => state.refreshLoan()),
+            const SizedBox(height: 16),
+          ],
+          LoanTracker(loan: loan, product: product, compact: true),
           const SizedBox(height: 14),
           OutlinedButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LoanDetailScreen(loanId: '${loan['_id']}'))),
-            child: const Text('View details'),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LoanDetailScreen(loanId: '${loan['_id']}'))).then((_) => state.refreshLoan()),
+            child: const Text('View full details'),
           ),
         ],
       ),
@@ -959,6 +960,23 @@ class _HowItWorks extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _LabelChip extends StatelessWidget {
+  final String label;
+  final bool approved;
+  const _LabelChip({required this.label, required this.approved});
+  @override
+  Widget build(BuildContext context) {
+    final fg = approved ? AppColors.accentDark : const Color(0xFFB45309);
+    final bg = approved ? AppColors.accentSoft : const Color(0xFFFFF7E6);
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 112),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Text(label, maxLines: 2, textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 11.5, fontWeight: FontWeight.w800)),
     );
   }
 }

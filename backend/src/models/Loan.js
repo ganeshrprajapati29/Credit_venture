@@ -171,8 +171,29 @@ const loanSchema = new Schema(
       interestRate: Number,
       emi: Number,
       processingFee: Number,
+      totalPayable: Number,
+      remarks: String,
       approvedBy: String,
       approvedAt: Date,
+    },
+
+    // review progress shown to the customer while pending (index into product.reviewSteps)
+    stage: { type: Number, default: 0 },
+    stageNote: String,
+    stageUpdatedAt: Date,
+
+    // processing fee paid by the customer in the app after approval, before disbursal
+    feePayment: {
+      required: { type: Boolean, default: false },
+      amount: Number,
+      status: { type: String, enum: ['unpaid', 'submitted', 'verified', 'rejected', 'waived'], default: 'unpaid' },
+      utr: String,
+      mode: String,
+      proof: fileSchema,
+      submittedAt: Date,
+      verifiedAt: Date,
+      verifiedBy: String,
+      remarks: String,
     },
 
     disbursal: {
@@ -223,6 +244,7 @@ loanSchema.methods.fileNames = function fileNames() {
     if (k[f] && k[f].filename) out.push(k[f].filename);
   });
   if (this.bank && this.bank.bankProof && this.bank.bankProof.filename) out.push(this.bank.bankProof.filename);
+  if (this.feePayment && this.feePayment.proof && this.feePayment.proof.filename) out.push(this.feePayment.proof.filename);
   return out;
 };
 

@@ -24,7 +24,7 @@ exports.dashboard = asyncHandler(async (_req, res) => {
     Loan.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     User.countDocuments(),
     User.countDocuments({ createdAt: { $gte: startOfDay } }),
-    Payment.countDocuments({ status: 'pending' }),
+    Payment.countDocuments({ status: 'pending' }).then(async (n) => ({ emi: n, fee: await Loan.countDocuments({ status: 'approved', 'feePayment.status': 'submitted' }) })),
     Loan.aggregate([{ $match: { status: { $in: ['disbursed', 'closed'] } } }, { $group: { _id: null, amount: { $sum: '$disbursal.amount' }, principal: { $sum: '$approved.amount' } } }]),
     Payment.aggregate([{ $match: { status: 'verified' } }, { $group: { _id: null, amount: { $sum: '$amount' } } }]),
     Loan.aggregate([
@@ -64,7 +64,8 @@ exports.dashboard = asyncHandler(async (_req, res) => {
     statusCounts,
     users,
     usersToday,
-    pendingPayments,
+    pendingPayments: pendingPayments.emi,
+    pendingFees: pendingPayments.fee,
     disbursedAmount: disbursedAgg[0]?.amount || 0,
     disbursedPrincipal: disbursedAgg[0]?.principal || 0,
     collectedAmount: collectedAgg[0]?.amount || 0,
@@ -82,6 +83,10 @@ exports.list = asyncHandler(async (req, res) => {
   if (req.query.status && req.query.status !== 'all') q.status = req.query.status;
   else q.status = { $ne: 'draft' };
   if (req.query.product && req.query.product !== 'all') q.product = req.query.product;
+  if (req.query.feeStatus) {
+    q['feePayment.status'] = req.query.feeStatus;
+    q.status = 'approved';
+  }
   if (req.query.includeDrafts === 'true' && !req.query.status) delete q.status;
   if (req.query.search) {
     const rx = new RegExp(escapeRegex(req.query.search.trim()), 'i');
@@ -110,7 +115,7 @@ exports.list = asyncHandler(async (req, res) => {
       .skip(skip)
       .limit(limit)
       .populate('user', 'mobile fullName')
-      .select('loanNumber status currentStep product productName user basic.firstName basic.lastName basic.monthlyIncome offer.amount offer.tenureMonths offer.emi approved.amount submittedAt createdAt updatedAt verification')
+      .select('loanNumber status currentStep stage feePayment.status feePayment.amount product productName user basic.firstName basic.lastName basic.monthlyIncome offer.amount offer.tenureMonths offer.emi approved.amount submittedAt createdAt updatedAt verification')
       .lean(),
     Loan.countDocuments(q),
   ]);
@@ -167,24 +172,37 @@ exports.updateStatus = asyncHandler(async (req, res) => {
 
   if (status === 'approved') {
     const s = await Setting.get();
-    const amount = Number(req.body.amount || loan.offer.amount);
+    // The admin decides the final amount, tenure, rate and processing fee (may differ from what was applied for)
+    const ps = s.forProduct(loan.product);
+    const amount = Math.round(Number(req.body.amount || loan.offer.amount));
     const tenure = Number(req.body.tenureMonths || loan.offer.tenureMonths);
-    const rate = req.body.interestRate !== undefined ? Number(req.body.interestRate) : loan.offer.interestRate ?? s.interestRate;
+    const rate = req.body.interestRate !== undefined && req.body.interestRate !== '' ? Number(req.body.interestRate) : loan.offer.interestRate ?? ps.interestRate;
     if (!amount || amount <= 0) throw ApiError.badRequest('Approved amount is required');
-    if (!tenure || tenure <= 0 || tenure > 120) throw ApiError.badRequest('Invalid tenure');
+    if (!tenure || tenure <= 0 || tenure > 480) throw ApiError.badRequest('Invalid tenure');
     if (!(rate >= 0 && rate <= 100)) throw ApiError.badRequest('Invalid interest rate');
-    const q = buildQuote(amount, tenure, { ...s.forProduct(loan.product), interestRate: rate });
+    const q = buildQuote(amount, tenure, { ...ps, interestRate: rate });
+    const fee = req.body.processingFee !== undefined && req.body.processingFee !== '' ? Math.round(Number(req.body.processingFee)) : q.totalFee;
+    if (!(fee >= 0) || fee >= amount) throw ApiError.badRequest('Invalid processing fee');
     loan.approved = {
       amount,
       tenureMonths: tenure,
       interestRate: rate,
       emi: q.emi,
-      processingFee: req.body.processingFee !== undefined ? Number(req.body.processingFee) : q.totalFee,
+      totalPayable: q.totalPayable,
+      processingFee: fee,
+      remarks: remarks || undefined,
       approvedBy: req.admin.name,
       approvedAt: new Date(),
     };
+    loan.feePayment = { required: fee > 0, amount: fee, status: fee > 0 ? 'unpaid' : 'waived' };
     loan.rejectionReason = undefined;
-    notify(loan.user, 'Loan approved 🎉', `Your loan ${loan.loanNumber} of ${fmt(amount)} is approved. Disbursal will be done shortly.`);
+    notify(
+      loan.user,
+      'Loan approved 🎉',
+      fee > 0
+        ? `Your ${loan.productName || 'loan'} ${loan.loanNumber} is approved for ${fmt(amount)}. Pay the processing fee of ${fmt(fee)} in the app to get the money in your bank.`
+        : `Your ${loan.productName || 'loan'} ${loan.loanNumber} is approved for ${fmt(amount)}. Disbursal will be done shortly.`
+    );
   }
   if (status === 'rejected') {
     if (!remarks) throw ApiError.badRequest('Please mention the rejection reason');
@@ -193,6 +211,7 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   }
   if (status === 'under_review') {
     loan.assignedTo = req.admin._id;
+    loan.stageUpdatedAt = new Date();
     notify(loan.user, 'Application under review', `Your application ${loan.loanNumber} is being verified by our team.`);
   }
   if (status === 'closed') {
@@ -212,12 +231,18 @@ exports.disburse = asyncHandler(async (req, res) => {
   const loan = await Loan.findById(req.params.id);
   if (!loan) throw ApiError.notFound('Loan not found');
   if (loan.status !== 'approved') throw ApiError.badRequest('Only approved loans can be disbursed');
+  const fp = loan.feePayment || {};
+  if (fp.required && !['verified', 'waived'].includes(fp.status) && !req.body.force) {
+    throw ApiError.badRequest('Processing fee is not verified yet. Verify the customer payment first.');
+  }
   const { utr, mode = 'IMPS', date } = req.body;
   if (!utr || !/^[A-Za-z0-9]{6,30}$/.test(utr)) throw ApiError.badRequest('Enter a valid UTR / reference number');
   const disbursedOn = date ? new Date(date) : new Date();
   if (Number.isNaN(disbursedOn.getTime())) throw ApiError.badRequest('Invalid disbursal date');
   const a = loan.approved;
-  const amount = req.body.amount ? Number(req.body.amount) : a.amount - (a.processingFee || 0);
+  // fee is collected separately through the app, so the full approved amount is sent by default
+  const fullAmount = (fp.required && fp.status === 'verified') || fp.status === 'waived' || !a.processingFee;
+  const amount = req.body.amount ? Number(req.body.amount) : fullAmount ? a.amount : a.amount - a.processingFee;
   loan.disbursal = { amount, utr, mode, date: disbursedOn, by: req.admin.name };
   loan.schedule = buildSchedule(a.amount, a.interestRate, a.tenureMonths, disbursedOn);
   loan.status = 'disbursed';
@@ -265,6 +290,52 @@ exports.editApplication = asyncHandler(async (req, res) => {
   loan.addHistory(loan.status, req.admin.name, 'Application details edited');
   await loan.save();
   ok(res, { loan }, 'Application updated');
+});
+
+/* -------------------------------------------------------------- review stage & processing fee */
+
+exports.updateStage = asyncHandler(async (req, res) => {
+  const loan = await Loan.findById(req.params.id);
+  if (!loan) throw ApiError.notFound('Loan not found');
+  if (!['submitted', 'under_review'].includes(loan.status)) throw ApiError.badRequest('Stage can be changed only while the application is pending');
+  const product = (await Setting.get()).product(loan.product);
+  const steps = product.reviewSteps || [];
+  const stage = Number(req.body.stage);
+  if (!Number.isInteger(stage) || stage < 0 || stage >= Math.max(1, steps.length)) throw ApiError.badRequest('Invalid stage');
+  const note = String(req.body.note || '').trim().slice(0, 300);
+  loan.stage = stage;
+  loan.stageNote = note || undefined;
+  loan.stageUpdatedAt = new Date();
+  if (loan.status === 'submitted') {
+    loan.status = 'under_review';
+    loan.assignedTo = req.admin._id;
+  }
+  const label = steps[stage] || 'In review';
+  loan.addHistory('under_review', req.admin.name, `${label}${note ? ` – ${note}` : ''}`);
+  await loan.save();
+  notify(loan.user, `Application update: ${label}`, note || `Your application ${loan.loanNumber} is now at "${label}".`);
+  ok(res, { loan }, 'Stage updated');
+});
+
+exports.reviewFee = asyncHandler(async (req, res) => {
+  const { status, remarks } = req.body;
+  if (!['verified', 'rejected', 'waived'].includes(status)) throw ApiError.badRequest('Invalid status');
+  const loan = await Loan.findById(req.params.id);
+  if (!loan) throw ApiError.notFound('Loan not found');
+  if (loan.status !== 'approved' || !loan.feePayment?.required) throw ApiError.badRequest('No processing fee to review on this loan');
+  if (status === 'rejected' && !remarks) throw ApiError.badRequest('Please mention the reason');
+  if (status === 'verified' && loan.feePayment.status !== 'submitted') throw ApiError.badRequest('Customer has not submitted the payment yet');
+  loan.feePayment.status = status;
+  loan.feePayment.remarks = remarks || undefined;
+  loan.feePayment.verifiedBy = req.admin.name;
+  loan.feePayment.verifiedAt = new Date();
+  const msg = { verified: 'Processing fee verified', rejected: `Processing fee rejected: ${remarks}`, waived: 'Processing fee waived' }[status];
+  loan.addHistory('approved', req.admin.name, msg);
+  await loan.save();
+  if (status === 'verified') notify(loan.user, 'Payment received ✅', `We have received your processing fee of ${fmt(loan.feePayment.amount)}. Your loan will be disbursed shortly.`, 'payment');
+  if (status === 'rejected') notify(loan.user, 'Processing fee payment issue', `We could not verify your payment: ${remarks}. Please pay again from the app.`, 'payment');
+  if (status === 'waived') notify(loan.user, 'Processing fee waived 🎉', 'No processing fee is needed for your loan. Disbursal will be done shortly.', 'payment');
+  ok(res, { loan }, msg);
 });
 
 /* -------------------------------------------------------------- payments */

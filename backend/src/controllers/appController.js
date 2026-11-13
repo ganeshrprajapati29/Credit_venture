@@ -58,6 +58,8 @@ const publicSettings = (s) => ({
       minMonthlyIncome: p.minMonthlyIncome,
       incomeLabel: p.incomeLabel,
       detailsTitle: p.detailsTitle,
+      reviewSteps: p.reviewSteps || [],
+      minProcessingFee: p.minProcessingFee,
       steps: p.steps,
       fields: p.fields || [],
     })),
@@ -71,9 +73,21 @@ const bannerUrl = (req, b) => ({
 exports.publicSettings = publicSettings;
 exports.bannerUrl = bannerUrl;
 
+const feePaymentPublic = (req, s) => {
+  const f = s.feePayment || {};
+  return {
+    upiId: f.upiId || '',
+    payeeName: f.payeeName || s.companyName,
+    instructions: f.instructions || '',
+    qrImageUrl: f.qrImage ? `${req.protocol}://${req.get('host')}/uploads/public/${f.qrImage}` : null,
+    demo: !f.upiId && !f.qrImage,
+  };
+};
+exports.feePaymentPublic = feePaymentPublic;
+
 exports.config = asyncHandler(async (req, res) => {
   const [s, banners] = await Promise.all([Setting.get(), Banner.find({ active: true }).sort({ order: 1, createdAt: -1 }).lean()]);
-  ok(res, { settings: publicSettings(s), banners: banners.map((b) => bannerUrl(req, b)) });
+  ok(res, { settings: { ...publicSettings(s), feePayment: feePaymentPublic(req, s) }, banners: banners.map((b) => bannerUrl(req, b)) });
 });
 
 exports.banners = asyncHandler(async (req, res) => {

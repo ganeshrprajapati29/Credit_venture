@@ -575,8 +575,8 @@ class StatusChip extends StatelessWidget {
 
   static const _map = {
     'draft': ('In progress', Color(0xFF64748B), Color(0xFFF1F5F9)),
-    'submitted': ('Submitted', Color(0xFF1D4ED8), Color(0xFFEFF6FF)),
-    'under_review': ('Under review', Color(0xFFB45309), Color(0xFFFFFBEB)),
+    'submitted': ('Pending', Color(0xFFB45309), Color(0xFFFFF7E6)),
+    'under_review': ('In review', Color(0xFFB45309), Color(0xFFFFFBEB)),
     'approved': ('Approved', Color(0xFF047857), Color(0xFFECFDF5)),
     'rejected': ('Rejected', Color(0xFFBE123C), Color(0xFFFFF1F2)),
     'disbursed': ('Active', Color(0xFF4338CA), Color(0xFFEEF2FF)),
