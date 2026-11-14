@@ -260,25 +260,41 @@ class ApprovedOfferCard extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 10),
             child: InfoBanner(text: 'Payment not verified: ${fee['remarks']}', icon: Icons.error_outline_rounded, color: AppColors.danger),
           ),
-        if (!accepted)
-          // step 1: accept & continue -> Key Fact Statement -> Continue -> QR payment
-          PrimaryButton(
-            label: 'Accept & Continue',
-            icon: Icons.arrow_forward_rounded,
-            onPressed: () async {
-              final done = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => KfsScreen(loan: loan)));
-              if (done == true) onPaid?.call();
-            },
-          )
-        else if (needsPay)
-          // terms already accepted: go straight to the QR
-          PrimaryButton(
-            label: feeStatus == 'rejected' ? 'Pay processing fee again' : 'Continue to payment',
-            icon: Icons.qr_code_2_rounded,
-            onPressed: () async {
-              final paid = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => FeePaymentScreen(loan: loan)));
-              if (paid == true) onPaid?.call();
-            },
+        if (!accepted || needsPay)
+          // two separate actions: Accept opens the Key Fact Statement, Continue opens the QR payment
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(54),
+                    side: BorderSide(color: accepted ? AppColors.accent : AppColors.primary, width: 1.4),
+                    foregroundColor: accepted ? AppColors.accentDark : AppColors.primary,
+                  ),
+                  onPressed: () async {
+                    final done = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => KfsScreen(loan: loan)));
+                    if (done == true) onPaid?.call();
+                  },
+                  icon: Icon(accepted ? Icons.check_circle_rounded : Icons.description_outlined, size: 19),
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text(accepted ? 'Accepted' : 'Accept')),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: PrimaryButton(
+                  label: feeStatus == 'rejected' ? 'Pay again' : 'Continue',
+                  icon: Icons.arrow_forward_rounded,
+                  onPressed: () async {
+                    if (!accepted) {
+                      showSnack(context, 'Please tap Accept and review the Key Fact Statement first', error: true);
+                      return;
+                    }
+                    final paid = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => FeePaymentScreen(loan: loan)));
+                    if (paid == true) onPaid?.call();
+                  },
+                ),
+              ),
+            ],
           )
         else if (fee['required'] == true && feeStatus == 'submitted')
           const InfoBanner(text: 'We received your payment details. Our team will verify it and disburse your loan shortly.', icon: Icons.hourglass_top_rounded)
