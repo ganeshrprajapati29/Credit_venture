@@ -20,11 +20,9 @@ class KfsScreen extends StatefulWidget {
 
 class _KfsScreenState extends State<KfsScreen> {
   late Map<String, dynamic> loan = widget.loan;
-  late bool agree = loan['approved']?['termsAcceptedAt'] != null;
   bool busy = false;
 
   Future<void> _continue() async {
-    if (!agree) return showSnack(context, 'Please accept the Key Fact Statement to continue', error: true);
     setState(() => busy = true);
     try {
       if (loan['approved']?['termsAcceptedAt'] == null) {
@@ -51,8 +49,6 @@ class _KfsScreenState extends State<KfsScreen> {
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final a = Map<String, dynamic>.from(loan['approved'] ?? {});
-    final fee = Map<String, dynamic>.from(loan['feePayment'] ?? {});
-    final needsFee = fee['required'] == true && ['unpaid', 'rejected'].contains(fee['status']);
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('Key Fact Statement')),
@@ -95,20 +91,14 @@ class _KfsScreenState extends State<KfsScreen> {
             InfoBanner(text: 'Note from lender: ${a['remarks']}', icon: Icons.sticky_note_2_outlined),
           ],
           const SizedBox(height: 12),
-          ConsentTile(
-            value: agree,
-            onChanged: (v) => setState(() => agree = v),
-            text: const Text('I have read and understood the Key Fact Statement and accept these loan terms.'),
+          const InfoBanner(
+            text: 'By tapping Continue you confirm that you have read this Key Fact Statement and accept these loan terms.',
+            icon: Icons.verified_user_outlined,
           ),
         ],
       ),
       bottomNavigationBar: BottomAction(
-        child: PrimaryButton(
-          label: needsFee ? 'Continue to pay ${inr(asNum(fee['amount']))}' : 'Continue',
-          icon: Icons.arrow_forward_rounded,
-          loading: busy,
-          onPressed: _continue,
-        ),
+        child: PrimaryButton(label: 'Continue', icon: Icons.arrow_forward_rounded, loading: busy, onPressed: _continue),
       ),
     );
   }

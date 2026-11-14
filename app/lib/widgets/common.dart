@@ -57,7 +57,9 @@ class PrimaryButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // long labels shrink to fit instead of overflowing on small phones
-                Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1))),
+                Flexible(
+                  child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1)),
+                ),
                 if (icon != null) ...[const SizedBox(width: 8), Icon(icon, size: 20)],
               ],
             ),

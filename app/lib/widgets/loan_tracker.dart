@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../screens/loans/fee_payment_screen.dart';
 import '../screens/loans/kfs_screen.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -212,6 +213,7 @@ class ApprovedOfferCard extends StatelessWidget {
     final fee = Map<String, dynamic>.from(loan['feePayment'] ?? {});
     final feeStatus = '${fee['status'] ?? ''}';
     final needsPay = fee['required'] == true && (feeStatus == 'unpaid' || feeStatus == 'rejected');
+    final accepted = loan['approved']?['termsAcceptedAt'] != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -252,34 +254,40 @@ class ApprovedOfferCard extends StatelessWidget {
             ],
           ),
         ),
-        if (fee['required'] == true) ...[
-          const SizedBox(height: 12),
-          if (feeStatus == 'rejected' && '${fee['remarks'] ?? ''}'.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: InfoBanner(text: 'Payment not verified: ${fee['remarks']}', icon: Icons.error_outline_rounded, color: AppColors.danger),
-            ),
-          if (needsPay)
-            PrimaryButton(
-              label: feeStatus == 'rejected' ? 'Pay processing fee again' : 'View terms & pay ${inr(asNum(fee['amount']))} fee',
-              icon: Icons.arrow_forward_rounded,
-              onPressed: () async {
-                final paid = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => KfsScreen(loan: loan)));
-                if (paid == true) onPaid?.call();
-              },
-            )
-          else if (feeStatus == 'submitted')
-            const InfoBanner(
-              text: 'We received your payment details. Our team will verify it and disburse your loan shortly.',
-              icon: Icons.hourglass_top_rounded,
-            )
-          else
-            const InfoBanner(
-              text: 'Processing fee received. Your loan is being disbursed to your bank account.',
-              icon: Icons.check_circle_outline_rounded,
-              color: AppColors.accentDark,
-            ),
-        ],
+        const SizedBox(height: 12),
+        if (feeStatus == 'rejected' && '${fee['remarks'] ?? ''}'.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: InfoBanner(text: 'Payment not verified: ${fee['remarks']}', icon: Icons.error_outline_rounded, color: AppColors.danger),
+          ),
+        if (!accepted)
+          // step 1: accept & continue -> Key Fact Statement -> Continue -> QR payment
+          PrimaryButton(
+            label: 'Accept & Continue',
+            icon: Icons.arrow_forward_rounded,
+            onPressed: () async {
+              final done = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => KfsScreen(loan: loan)));
+              if (done == true) onPaid?.call();
+            },
+          )
+        else if (needsPay)
+          // terms already accepted: go straight to the QR
+          PrimaryButton(
+            label: feeStatus == 'rejected' ? 'Pay processing fee again' : 'Continue to payment',
+            icon: Icons.qr_code_2_rounded,
+            onPressed: () async {
+              final paid = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => FeePaymentScreen(loan: loan)));
+              if (paid == true) onPaid?.call();
+            },
+          )
+        else if (fee['required'] == true && feeStatus == 'submitted')
+          const InfoBanner(text: 'We received your payment details. Our team will verify it and disburse your loan shortly.', icon: Icons.hourglass_top_rounded)
+        else
+          const InfoBanner(
+            text: 'Terms accepted. Your loan is being disbursed to your bank account.',
+            icon: Icons.check_circle_outline_rounded,
+            color: AppColors.accentDark,
+          ),
       ],
     );
   }
