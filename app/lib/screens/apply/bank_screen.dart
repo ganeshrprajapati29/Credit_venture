@@ -25,8 +25,6 @@ class _BankScreenState extends State<BankScreen> {
   final bankName = TextEditingController();
   final branch = TextEditingController();
   String accountType = 'savings';
-  String? proofPath;
-  String? proofRemote;
   bool autoDebit = true, busy = false, hideAccount = true;
 
   @override
@@ -42,13 +40,11 @@ class _BankScreenState extends State<BankScreen> {
     bankName.text = b['bankName'] ?? '';
     branch.text = b['branch'] ?? '';
     accountType = b['accountType'] ?? 'savings';
-    proofRemote = b['bankProof'] is Map ? b['bankProof']['filename'] : null;
     autoDebit = b['autoDebitConsent'] ?? true;
   }
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
-    if (proofPath == null && proofRemote == null) return showSnack(context, 'Please upload a cancelled cheque, passbook or bank statement', error: true);
     setState(() => busy = true);
     try {
       final r = await Api.instance.upload(
@@ -63,7 +59,6 @@ class _BankScreenState extends State<BankScreen> {
           'accountType': accountType,
           'autoDebitConsent': autoDebit,
         },
-        files: {'bankProof': ?proofPath},
       );
       if (mounted) ApplyFlow.next(context, Map<String, dynamic>.from(r['data']['loan']), 'bank');
     } catch (e) {
@@ -146,16 +141,6 @@ class _BankScreenState extends State<BankScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Bank proof', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-            const SizedBox(height: 10),
-            DocUploadTile(
-              label: 'Cancelled cheque / Passbook',
-              hint: 'Or first page of bank statement showing name & account no.',
-              icon: Icons.account_balance_rounded,
-              localPath: proofPath,
-              remoteName: proofRemote,
-              onPicked: (p) => setState(() => proofPath = p),
-            ),
             ConsentTile(
               value: autoDebit,
               onChanged: (v) => setState(() => autoDebit = v),

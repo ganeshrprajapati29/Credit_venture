@@ -173,6 +173,8 @@ const loanSchema = new Schema(
       processingFee: Number,
       totalPayable: Number,
       remarks: String,
+      termsAcceptedAt: Date, // customer accepted the Key Fact Statement in the app
+      termsAcceptedIp: String,
       approvedBy: String,
       approvedAt: Date,
     },

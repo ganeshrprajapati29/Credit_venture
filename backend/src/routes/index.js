@@ -58,6 +58,7 @@ router.post('/loans/current/submit', requireUser, loan.submit);
 router.get('/loans/:id', requireUser, loan.detail);
 router.post('/loans/:id/cancel', requireUser, loan.cancel);
 router.post('/loans/:id/payments', requireUser, privateUpload.single('proof'), loan.submitPayment);
+router.post('/loans/:id/accept-terms', requireUser, loan.acceptTerms);
 router.post('/loans/:id/fee-payment', requireUser, privateUpload.single('proof'), loan.submitFeePayment);
 
 /* ------------------------------------------------------------- notifications & files */

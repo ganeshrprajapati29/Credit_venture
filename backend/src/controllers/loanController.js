@@ -371,8 +371,7 @@ exports.saveBank = asyncHandler(async (req, res) => {
     if (body.confirmAccountNumber !== undefined && body.confirmAccountNumber !== body.accountNumber) {
       throw ApiError.badRequest('Account numbers do not match');
     }
-    const prevProof = loan.bank?.bankProof;
-    if (!proof && !prevProof?.filename) throw ApiError.badRequest('Please upload a cancelled cheque, passbook or bank statement');
+    const prevProof = loan.bank?.bankProof; // bank proof upload is optional
 
     loan.bank = {
       ...pick(body, ['accountHolderName', 'accountNumber', 'ifsc', 'bankName', 'branch', 'accountType']),
@@ -440,6 +439,21 @@ exports.cancel = asyncHandler(async (req, res) => {
   ok(res, { loan: forUser(loan) }, 'Application cancelled');
 });
 
+/* ---------------------------------------------------------------- Key Fact Statement acceptance (after approval) */
+
+exports.acceptTerms = asyncHandler(async (req, res) => {
+  const loan = await Loan.findOne({ _id: req.params.id, user: req.user._id });
+  if (!loan) throw ApiError.notFound('Loan not found');
+  if (loan.status !== 'approved' || !loan.approved?.amount) throw ApiError.badRequest('There are no approved terms to accept');
+  if (!loan.approved.termsAcceptedAt) {
+    loan.approved.termsAcceptedAt = new Date();
+    loan.approved.termsAcceptedIp = req.ip;
+    loan.addHistory('approved', 'user', 'Key Fact Statement accepted');
+    await loan.save();
+  }
+  ok(res, { loan: forUser(loan) }, 'Terms accepted');
+});
+
 /* ---------------------------------------------------------------- processing fee (QR payment after approval) */
 
 exports.submitFeePayment = asyncHandler(async (req, res) => {
@@ -450,6 +464,7 @@ exports.submitFeePayment = asyncHandler(async (req, res) => {
     const fp = loan.feePayment || {};
     if (loan.status !== 'approved' || !fp.required) throw ApiError.badRequest('No processing fee is due on this loan');
     if (!['unpaid', 'rejected'].includes(fp.status)) throw ApiError.badRequest('Your payment is already submitted for verification');
+    if (!loan.approved?.termsAcceptedAt) throw ApiError.badRequest('Please review and accept the Key Fact Statement first');
     validate(req.body, {
       utr: { required: true, label: 'UTR / Transaction ID', rx: /^[A-Za-z0-9]{6,30}$/, msg: 'Enter a valid UTR / transaction ID' },
     });

@@ -627,14 +627,12 @@ class _LoanCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          if (approved) ...[
-            ApprovedOfferCard(loan: loan, onPaid: () => state.refreshLoan()),
-            const SizedBox(height: 16),
-          ],
+          if (approved) ...[ApprovedOfferCard(loan: loan, onPaid: () => state.refreshLoan()), const SizedBox(height: 16)],
           LoanTracker(loan: loan, product: product, compact: true),
           const SizedBox(height: 14),
           OutlinedButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LoanDetailScreen(loanId: '${loan['_id']}'))).then((_) => state.refreshLoan()),
+            onPressed: () =>
+                Navigator.push(context, MaterialPageRoute(builder: (_) => LoanDetailScreen(loanId: '${loan['_id']}'))).then((_) => state.refreshLoan()),
             child: const Text('View full details'),
           ),
         ],
@@ -976,7 +974,12 @@ class _LabelChip extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 112),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(label, maxLines: 2, textAlign: TextAlign.center, style: TextStyle(color: fg, fontSize: 11.5, fontWeight: FontWeight.w800)),
+      child: Text(
+        label,
+        maxLines: 2,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: fg, fontSize: 11.5, fontWeight: FontWeight.w800),
+      ),
     );
   }
 }

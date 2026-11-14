@@ -6,6 +6,7 @@ import '../../core/app_state.dart';
 import '../../core/format.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kfs.dart';
 import '../../widgets/loan_tracker.dart';
 import 'payment_screen.dart';
 
@@ -133,18 +134,32 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             ],
             if (status == 'approved') ...[
               const SizedBox(height: 16),
-              SectionCard(child: ApprovedOfferCard(loan: l, onPaid: _load)),
+              SectionCard(
+                child: ApprovedOfferCard(loan: l, onPaid: _load),
+              ),
             ],
             if (['submitted', 'under_review', 'approved', 'disbursed'].contains(status)) ...[
               const SizedBox(height: 18),
               Row(
                 children: [
-                  const Expanded(child: Text('Application status', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17))),
+                  const Expanded(
+                    child: Text('Application status', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                  ),
                   StatusLabel(text: loanStatusLabel(l, context.read<AppState>().product('${l['product']}'))),
                 ],
               ),
               const SizedBox(height: 10),
-              SectionCard(child: LoanTracker(loan: l, product: context.read<AppState>().product('${l['product']}'))),
+              SectionCard(
+                child: LoanTracker(loan: l, product: context.read<AppState>().product('${l['product']}')),
+              ),
+            ],
+            if (['submitted', 'under_review', 'approved', 'disbursed', 'closed'].contains(status)) ...[
+              const SizedBox(height: 18),
+              const Text('Key Fact Statement', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+              const SizedBox(height: 10),
+              SectionCard(
+                child: KeyFactStatement(loan: l, lender: '${context.read<AppState>().settings['lendingPartner'] ?? ''}'),
+              ),
             ],
             if (l['disbursal'] is Map && l['disbursal']['utr'] != null) ...[
               const SizedBox(height: 16),

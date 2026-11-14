@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +9,8 @@ import '../../widgets/common.dart';
 import '../legal_screen.dart';
 import 'submitted_screen.dart';
 
-/// Key Fact Statement + loan agreement e-sign (typed name) + final submit.
+/// Loan summary + loan agreement e-sign (typed name) + final submit.
+/// The Key Fact Statement is shown after approval, with the lender's final terms.
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key});
   @override
@@ -21,23 +20,6 @@ class ReviewScreen extends StatefulWidget {
 class _ReviewScreenState extends State<ReviewScreen> {
   final sign = TextEditingController();
   bool agree = false, busy = false;
-
-  /// Annual percentage rate including fees (IRR of the cash flows).
-  double _apr(num net, num emi, int n) {
-    if (net <= 0 || emi <= 0 || n <= 0) return 0;
-    double r = 0.02;
-    for (var i = 0; i < 100; i++) {
-      double f = -net.toDouble(), d = 0;
-      for (var k = 1; k <= n; k++) {
-        f += emi / pow(1 + r, k);
-        d += -k * emi / pow(1 + r, k + 1);
-      }
-      final nr = r - f / d;
-      if ((nr - r).abs() < 1e-9) break;
-      r = nr;
-    }
-    return r * 12 * 100;
-  }
 
   Future<void> _submit() async {
     final s = context.read<AppState>();
@@ -67,7 +49,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final o = Map<String, dynamic>.from(l['offer'] ?? {});
     final b = Map<String, dynamic>.from(l['basic'] ?? {});
     final bank = Map<String, dynamic>.from(l['bank'] ?? {});
-    final apr = _apr(asNum(o['disbursalAmount']) ?? 0, asNum(o['emi']) ?? 0, (asNum(o['tenureMonths']) ?? 0).toInt());
     final acc = '${bank['accountNumber'] ?? ''}';
     return StepScaffold(
       title: 'Review & sign',
@@ -79,56 +60,64 @@ class _ReviewScreenState extends State<ReviewScreen> {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(22)),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+            decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(24)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Loan amount', style: TextStyle(color: AppColors.onHeroMuted)),
-                      Text(
-                        inr(o['amount']),
-                        style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Loan amount applied',
+                        style: TextStyle(color: AppColors.onHeroMuted, fontSize: 15, fontWeight: FontWeight.w600),
                       ),
+                    ),
+                    if (l['productName'] != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          '${l['productName']}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    inr(o['amount']),
+                    style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1, height: 1.1),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(16)),
+                  child: Row(
+                    children: [
+                      _heroStat('Tenure', fmtTenure(o['tenureMonths'])),
+                      _heroStat('Monthly EMI', inr(o['emi']), highlight: true),
+                      _heroStat('Interest', '${o['interestRate'] ?? '--'}% p.a.'),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(height: 12),
+                const Row(
                   children: [
-                    Text(
-                      fmtTenure(o['tenureMonths']),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      'EMI ${inr(o['emi'])}',
-                      style: const TextStyle(color: Color(0xFF6EE7B7), fontWeight: FontWeight.w800, fontSize: 16),
+                    Icon(Icons.info_outline_rounded, size: 15, color: AppColors.onHeroMuted),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Final amount, interest and fee are confirmed after approval in your Key Fact Statement.',
+                        style: TextStyle(color: AppColors.onHeroMuted, fontSize: 12, height: 1.35),
+                      ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text('Key Fact Statement', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-          const SizedBox(height: 10),
-          SectionCard(
-            child: Column(
-              children: [
-                KeyValueRow('Sanctioned amount', inr(o['amount'])),
-                KeyValueRow('Tenure', '${o['tenureMonths']} monthly instalments'),
-                KeyValueRow('Interest rate', '${o['interestRate']}% p.a. (reducing balance)'),
-                KeyValueRow('Monthly EMI', inr(o['emi'])),
-                KeyValueRow('Processing fee', inr(o['processingFee'])),
-                KeyValueRow('GST on fee', inr(o['gstOnFee'])),
-                KeyValueRow('Net amount disbursed', inr(o['disbursalAmount']), bold: true),
-                KeyValueRow('Total interest', inr(o['totalInterest'])),
-                KeyValueRow('Total amount repayable', inr(o['totalPayable']), bold: true),
-                KeyValueRow('Annual percentage rate (APR)', '${apr.toStringAsFixed(2)}%', bold: true),
-                const KeyValueRow('Cooling-off period', '3 days (prepay without penalty)'),
-                if ('${s.settings['lendingPartner'] ?? ''}'.isNotEmpty) KeyValueRow('Lender', '${s.settings['lendingPartner']}'),
               ],
             ),
           ),
@@ -175,7 +164,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             text: Text.rich(
               TextSpan(
                 children: [
-                  const TextSpan(text: 'I have read and accept the loan agreement, Key Fact Statement, '),
+                  const TextSpan(text: 'I have read and accept the loan agreement, '),
                   WidgetSpan(
                     child: GestureDetector(
                       onTap: () => LegalScreen.open(context, terms: true),
@@ -212,4 +201,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
       ),
     );
   }
+
+  Widget _heroStat(String k, String v, {bool highlight = false}) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(k, style: const TextStyle(color: AppColors.onHeroMuted, fontSize: 11.5)),
+        const SizedBox(height: 3),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            v,
+            style: TextStyle(color: highlight ? const Color(0xFF6EE7B7) : Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    ),
+  );
 }

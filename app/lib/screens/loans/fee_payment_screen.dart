@@ -95,7 +95,10 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('Processing fee', style: TextStyle(color: AppColors.onHeroMuted)),
-                        Text(inr(amount), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)),
+                        Text(
+                          inr(amount),
+                          style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
+                        ),
                         Text('${widget.loan['productName'] ?? 'Loan'} · $loanNo', style: const TextStyle(color: AppColors.onHeroSoft, fontSize: 12.5)),
                       ],
                     ),
@@ -135,7 +138,10 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(8)),
-                            child: const Text('DEMO QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                            child: const Text(
+                              'DEMO QR',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2),
+                            ),
                           ),
                         ),
                     ],
@@ -152,7 +158,10 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(upiId, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                          Text(
+                            upiId,
+                            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+                          ),
                           const SizedBox(width: 6),
                           const Icon(Icons.copy_rounded, size: 15, color: AppColors.primary),
                         ],
@@ -208,11 +217,16 @@ class _FeePaymentScreenState extends State<FeePaymentScreen> {
               onPicked: (p) => setState(() => proof = p),
             ),
             const SizedBox(height: 6),
-            const InfoBanner(text: 'Pay only to the account shown here. Our staff will never ask you to pay to a personal account.', icon: Icons.shield_outlined),
+            const InfoBanner(
+              text: 'Pay only to the account shown here. Our staff will never ask you to pay to a personal account.',
+              icon: Icons.shield_outlined,
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: BottomAction(child: PrimaryButton(label: 'Submit payment', loading: busy, onPressed: _submit)),
+      bottomNavigationBar: BottomAction(
+        child: PrimaryButton(label: 'Submit payment', loading: busy, onPressed: _submit),
+      ),
     );
   }
 }
@@ -224,6 +238,9 @@ class _UpiChip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
     decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(20)),
-    child: Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+    child: Text(
+      name,
+      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+    ),
   );
 }

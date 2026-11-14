@@ -202,6 +202,7 @@ export default function LoanDetail() {
                   <KV label="Fee" value={inr(loan.approved.processingFee)} />
                   <KV label="Approved by" value={loan.approved.approvedBy} />
                   <KV label="Approved on" value={date(loan.approved.approvedAt)} />
+                  <KV label="KFS accepted by customer" value={loan.approved.termsAcceptedAt ? dateTime(loan.approved.termsAcceptedAt) : 'Not yet'} />
                 </dl>
               </div>
             )}
@@ -391,6 +392,9 @@ export default function LoanDetail() {
                   <Button size="sm" variant="ghost" className="w-full" onClick={() => act(() => send('patch', `/admin/loans/${id}/fee`, { status: 'waived' }))}>
                     Waive processing fee
                   </Button>
+                )}
+                {fee.status === 'unpaid' && !loan.approved?.termsAcceptedAt && (
+                  <p className="text-xs text-slate-500">Waiting for the customer to accept the Key Fact Statement in the app.</p>
                 )}
                 {!feeReady && <p className="text-xs text-slate-500">Disbursal unlocks after the fee is verified or waived.</p>}
               </div>

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
-import '../screens/loans/fee_payment_screen.dart';
+import '../screens/loans/kfs_screen.dart';
 import '../theme.dart';
 import 'common.dart';
 
@@ -174,7 +174,11 @@ class LoanTracker extends StatelessWidget {
   }
 
   Widget _dot(StepState s) => switch (s) {
-    StepState.done => const CircleAvatar(radius: 12, backgroundColor: AppColors.accent, child: Icon(Icons.check_rounded, size: 15, color: Colors.white)),
+    StepState.done => const CircleAvatar(
+      radius: 12,
+      backgroundColor: AppColors.accent,
+      child: Icon(Icons.check_rounded, size: 15, color: Colors.white),
+    ),
     StepState.current => Container(
       width: 24,
       height: 24,
@@ -187,7 +191,11 @@ class LoanTracker extends StatelessWidget {
     StepState.todo => Container(
       width: 24,
       height: 24,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white, border: Border.all(color: const Color(0xFFD6CFE1), width: 2)),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFD6CFE1), width: 2),
+      ),
     ),
   };
 }
@@ -221,17 +229,14 @@ class ApprovedOfferCard extends StatelessWidget {
                 children: [
                   Icon(Icons.verified_rounded, color: AppColors.accentDark, size: 18),
                   SizedBox(width: 6),
-                  Text('Your approved loan', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.accentDark)),
+                  Text(
+                    'Your approved loan',
+                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.accentDark),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  _term('Amount', inr(asNum(a['amount']))),
-                  _term('Tenure', fmtTenure(a['tenureMonths'])),
-                  _term('EMI', inr(asNum(a['emi']))),
-                ],
-              ),
+              Row(children: [_term('Amount', inr(asNum(a['amount']))), _term('Tenure', fmtTenure(a['tenureMonths'])), _term('EMI', inr(asNum(a['emi'])))]),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -256,15 +261,18 @@ class ApprovedOfferCard extends StatelessWidget {
             ),
           if (needsPay)
             PrimaryButton(
-              label: feeStatus == 'rejected' ? 'Pay processing fee again' : 'Pay ${inr(asNum(fee['amount']))} processing fee',
-              icon: Icons.qr_code_2_rounded,
+              label: feeStatus == 'rejected' ? 'Pay processing fee again' : 'View terms & pay ${inr(asNum(fee['amount']))} fee',
+              icon: Icons.arrow_forward_rounded,
               onPressed: () async {
-                final paid = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => FeePaymentScreen(loan: loan)));
+                final paid = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => KfsScreen(loan: loan)));
                 if (paid == true) onPaid?.call();
               },
             )
           else if (feeStatus == 'submitted')
-            const InfoBanner(text: 'We received your payment details. Our team will verify it and disburse your loan shortly.', icon: Icons.hourglass_top_rounded)
+            const InfoBanner(
+              text: 'We received your payment details. Our team will verify it and disburse your loan shortly.',
+              icon: Icons.hourglass_top_rounded,
+            )
           else
             const InfoBanner(
               text: 'Processing fee received. Your loan is being disbursed to your bank account.',
