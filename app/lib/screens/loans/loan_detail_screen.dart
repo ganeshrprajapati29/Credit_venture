@@ -42,35 +42,6 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     }
   }
 
-  Future<void> _cancel() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancel application?'),
-        content: const Text('Your application will be withdrawn. You can apply again later.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yes, cancel', style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      await Api.instance.post('/loans/${widget.loanId}/cancel', {'reason': 'Cancelled by customer'});
-      if (!mounted) return;
-      await context.read<AppState>().refreshLoan();
-      if (mounted) {
-        showSnack(context, 'Application cancelled');
-        _load();
-      }
-    } catch (e) {
-      if (mounted) showSnack(context, errorText(e), error: true);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (error != null) {
@@ -282,14 +253,6 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                 ],
               ),
             ),
-            if (status == 'submitted') ...[
-              const SizedBox(height: 18),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-                onPressed: _cancel,
-                child: const Text('Cancel application'),
-              ),
-            ],
           ],
         ),
       ),
