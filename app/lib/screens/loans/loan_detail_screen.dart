@@ -124,8 +124,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                 child: LoanTracker(loan: l, product: context.read<AppState>().product('${l['product']}')),
               ),
             ],
-            if (['submitted', 'under_review', 'disbursed', 'closed'].contains(status) ||
-                (status == 'approved' && l['approved']?['termsAcceptedAt'] != null)) ...[
+            // Key Fact Statement only after the admin approves the loan (final terms)
+            if (['approved', 'disbursed', 'closed'].contains(status) && l['approved'] is Map && l['approved']['amount'] != null) ...[
               const SizedBox(height: 18),
               const Text('Key Fact Statement', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
               const SizedBox(height: 10),
