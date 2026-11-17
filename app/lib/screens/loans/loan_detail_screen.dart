@@ -213,6 +213,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               ),
             ],
             const SizedBox(height: 18),
+            const Text('Application details', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+            const SizedBox(height: 10),
+            _ApplicationDetails(loan: l, product: context.read<AppState>().product('${l['product']}')),
+            const SizedBox(height: 18),
             const Text('Timeline', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
             const SizedBox(height: 10),
             SectionCard(
@@ -271,4 +275,118 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       ],
     ),
   );
+}
+
+/// Applicant details exactly as saved on the server (admin edits show up here).
+class _ApplicationDetails extends StatelessWidget {
+  final Map<String, dynamic> loan;
+  final Map<String, dynamic>? product;
+  const _ApplicationDetails({required this.loan, this.product});
+
+  String _v(dynamic v) => v == null || '$v'.trim().isEmpty ? '—' : '$v';
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Map<String, dynamic>.from(loan['basic'] ?? {});
+    final p = Map<String, dynamic>.from(loan['personal'] ?? {});
+    final e = Map<String, dynamic>.from(loan['employment'] ?? {});
+    final a = Map<String, dynamic>.from(loan['address'] ?? {});
+    final k = Map<String, dynamic>.from(loan['kyc'] ?? {});
+    final bank = Map<String, dynamic>.from(loan['bank'] ?? {});
+    final pd = Map<String, dynamic>.from(loan['productDetails'] ?? {});
+    final fields = List<Map<String, dynamic>>.from(product?['fields'] ?? const []);
+    final acc = '${bank['accountNumber'] ?? ''}';
+
+    final sections = <(IconData, String, List<(String, String)>)>[
+      (
+        Icons.person_outline_rounded,
+        'Personal',
+        [
+          ('Name', _v('${b['firstName'] ?? ''} ${b['lastName'] ?? ''}'.trim())),
+          ('Date of birth', fmtDate(b['dob'])),
+          ('Gender', titleCase(_v(b['gender']))),
+          ('Email', _v(b['email'])),
+          ('Education', _v(b['education'])),
+          ('Marital status', _v(b['maritalStatus'])),
+          ('Monthly income', b['monthlyIncome'] == null ? '—' : inr(asNum(b['monthlyIncome']))),
+          ('Employment type', _v(b['employmentType'])),
+          ("Father's name", _v(p['fatherName'])),
+          ("Mother's name", _v(p['motherName'])),
+          ('Residence', titleCase(_v(p['residenceType']))),
+          ('Purpose', _v(p['purpose'])),
+        ],
+      ),
+      if (pd.isNotEmpty)
+        (
+          productIcon('${loan['product']}'),
+          '${product?['detailsTitle'] ?? ''}'.isEmpty ? 'Loan details' : '${product?['detailsTitle']}',
+          [
+            for (final f in fields)
+              if (pd[f['key']] != null)
+                ('${f['label']}'.replaceAll(RegExp(r'\s*\(.*\)$'), ''), '${f['label']}'.contains('₹') ? inr(asNum(pd[f['key']])) : _v(pd[f['key']])),
+          ],
+        ),
+      if (e['companyName'] != null)
+        (
+          Icons.work_outline_rounded,
+          'Employment',
+          [
+            ('Company', _v(e['companyName'])),
+            ('Sector', _v(e['sector'])),
+            ('Industry', _v(e['industryType'])),
+            ('Nature of work', _v(e['natureOfWork'])),
+            ('Designation', _v(e['designation'])),
+            ('Company address', _v('${e['companyAddress'] ?? ''}${e['companyPincode'] != null ? ' - ${e['companyPincode']}' : ''}')),
+          ],
+        ),
+      (
+        Icons.home_outlined,
+        'Address',
+        [
+          ('Current address', _v([a['line1'], a['line2'], a['landmark']].where((x) => x != null && '$x'.isNotEmpty).join(', '))),
+          ('City / State', _v([a['city'], a['state']].where((x) => x != null).join(', '))),
+          ('PIN code', _v(a['pincode'])),
+          ('Permanent address', a['sameAsPermanent'] == false ? _v(a['permanentAddress']) : 'Same as current'),
+        ],
+      ),
+      (Icons.badge_outlined, 'KYC', [('PAN', _v(k['panNumber'])), ('Aadhaar', _v(k['aadhaarNumber']))]),
+      (
+        Icons.account_balance_outlined,
+        'Bank account',
+        [
+          ('Account holder', _v(bank['accountHolderName'])),
+          ('Bank', _v(bank['bankName'])),
+          ('Account number', acc.length > 4 ? 'XXXX${acc.substring(acc.length - 4)}' : _v(acc)),
+          ('IFSC', _v(bank['ifsc'])),
+          ('Account type', titleCase(_v(bank['accountType']))),
+        ],
+      ),
+    ];
+
+    return SectionCard(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: [
+          for (var i = 0; i < sections.length; i++) ...[
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: i == 0,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(10)),
+                  child: Icon(sections[i].$1, size: 18, color: AppColors.primary),
+                ),
+                title: Text(sections[i].$2, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                children: [for (final row in sections[i].$3) KeyValueRow(row.$1, row.$2)],
+              ),
+            ),
+            if (i < sections.length - 1) const Divider(indent: 16, endIndent: 16),
+          ],
+        ],
+      ),
+    );
+  }
 }

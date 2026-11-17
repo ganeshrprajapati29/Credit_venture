@@ -4,7 +4,8 @@ const Notification = require('../../models/Notification');
 const Setting = require('../../models/Setting');
 const { ApiError, asyncHandler, ok, escapeRegex, paginate } = require('../../utils/http');
 const { buildQuote, buildSchedule } = require('../../utils/emi');
-const { RX } = require('../../utils/validators');
+const { RX, isValidAadhaar } = require('../../utils/validators');
+const { fileMeta, removeFile, PRIVATE_DIR } = require('../../middleware/upload');
 
 const notify = (user, title, body, type = 'loan') => Notification.create({ user, title, body, type }).catch(() => {});
 
@@ -266,30 +267,143 @@ exports.markInstallment = asyncHandler(async (req, res) => {
   ok(res, { loan }, 'Installment updated');
 });
 
+// Fields the admin may edit, per section (anything else in the body is ignored)
+const EDITABLE_FIELDS = {
+  basic: ['firstName', 'lastName', 'dob', 'gender', 'email', 'education', 'maritalStatus', 'employmentType', 'monthlyIncome', 'salaryMode', 'preferredAmount'],
+  personal: ['fatherName', 'motherName', 'residenceType', 'purpose', 'language'],
+  employment: ['companyName', 'sector', 'industryType', 'natureOfWork', 'designation', 'officeEmail', 'workExperienceMonths', 'companyAddress', 'companyPincode'],
+  address: ['line1', 'line2', 'landmark', 'city', 'state', 'pincode', 'yearsAtAddress', 'sameAsPermanent', 'permanentAddress'],
+  bank: ['accountHolderName', 'accountNumber', 'ifsc', 'bankName', 'branch', 'accountType'],
+  kyc: ['aadhaarNumber', 'panNumber'],
+};
+const NUMBER_FIELDS = ['monthlyIncome', 'preferredAmount', 'workExperienceMonths', 'yearsAtAddress'];
+const LABELS = { basic: 'Basic details', personal: 'Personal details', employment: 'Employment', address: 'Address', bank: 'Bank account', kyc: 'KYC', productDetails: 'Loan details' };
+
+function cleanValue(sec, key, raw) {
+  let v = typeof raw === 'string' ? raw.trim() : raw;
+  if (v === '' || v === null) return undefined;
+  if (NUMBER_FIELDS.includes(key)) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) throw ApiError.badRequest(`Invalid ${key}`);
+    return n;
+  }
+  if (key === 'sameAsPermanent') return v === true || v === 'true';
+  if (key === 'dob') {
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) throw ApiError.badRequest('Invalid date of birth');
+    return d;
+  }
+  if (key === 'gender' && !['male', 'female', 'other'].includes(v)) throw ApiError.badRequest('Invalid gender');
+  if (key === 'residenceType' && !['owned', 'rented', 'family', 'pg'].includes(v)) throw ApiError.badRequest('Invalid residence type');
+  if (key === 'accountType' && !['savings', 'current'].includes(v)) throw ApiError.badRequest('Invalid account type');
+  if ((key === 'email' || key === 'officeEmail') && !RX.email.test(v)) throw ApiError.badRequest('Invalid email');
+  if ((key === 'pincode' || key === 'companyPincode') && !RX.pincode.test(v)) throw ApiError.badRequest('Invalid PIN code');
+  if (key === 'panNumber') {
+    v = String(v).toUpperCase();
+    if (!RX.pan.test(v)) throw ApiError.badRequest('Invalid PAN');
+  }
+  if (key === 'aadhaarNumber') {
+    v = String(v).replace(/\s/g, '');
+    if (!isValidAadhaar(v)) throw ApiError.badRequest('Invalid Aadhaar number');
+  }
+  if (key === 'ifsc') {
+    v = String(v).toUpperCase();
+    if (!RX.ifsc.test(v)) throw ApiError.badRequest('Invalid IFSC');
+  }
+  if (key === 'accountNumber') {
+    v = String(v).replace(/\s/g, '');
+    if (!RX.accountNumber.test(v)) throw ApiError.badRequest('Account number must be 9 to 18 digits');
+  }
+  return typeof v === 'string' ? v.slice(0, 300) : v;
+}
+
 exports.editApplication = asyncHandler(async (req, res) => {
-  // allow admins to correct typos in applicant data before approval
+  // Admin can correct / update every applicant detail; the app always shows the saved data
   const loan = await Loan.findById(req.params.id);
   if (!loan) throw ApiError.notFound('Loan not found');
-  if (['disbursed', 'closed'].includes(loan.status)) throw ApiError.badRequest('Disbursed loans cannot be edited');
-  const sections = ['basic', 'personal', 'employment', 'address', 'bank'];
-  sections.forEach((sec) => {
-    if (req.body[sec] && typeof req.body[sec] === 'object') {
-      Object.entries(req.body[sec]).forEach(([k, v]) => {
-        if (['bankProof', 'consents'].includes(k)) return;
-        loan.set(`${sec}.${k}`, v);
-      });
-    }
+  if (['closed', 'cancelled'].includes(loan.status)) throw ApiError.badRequest('Closed or cancelled applications cannot be edited');
+  const changed = [];
+
+  Object.entries(EDITABLE_FIELDS).forEach(([sec, keys]) => {
+    const body = req.body[sec];
+    if (!body || typeof body !== 'object') return;
+    keys.forEach((k) => {
+      if (!(k in body)) return;
+      const v = cleanValue(sec, k, body[k]);
+      const before = loan.get(`${sec}.${k}`);
+      const same = before instanceof Date && v instanceof Date ? before.getTime() === v.getTime() : String(before ?? '') === String(v ?? '');
+      if (same) return;
+      loan.set(`${sec}.${k}`, v);
+      if (!changed.includes(LABELS[sec])) changed.push(LABELS[sec]);
+    });
   });
-  if (req.body.kyc) {
-    if (req.body.kyc.panNumber) {
-      const pan = String(req.body.kyc.panNumber).toUpperCase();
-      if (!RX.pan.test(pan)) throw ApiError.badRequest('Invalid PAN');
-      loan.kyc.panNumber = pan;
+
+  if (req.body.productDetails && typeof req.body.productDetails === 'object') {
+    const product = (await Setting.get()).product(loan.product);
+    const fields = product.fields || [];
+    const next = { ...(loan.productDetails || {}) };
+    fields.forEach((f) => {
+      if (!(f.key in req.body.productDetails)) return;
+      let v = req.body.productDetails[f.key];
+      if (typeof v === 'string') v = v.trim();
+      if (v === '' || v === null || v === undefined) {
+        if (f.required) throw ApiError.badRequest(`${f.label} is required`);
+        delete next[f.key];
+        return;
+      }
+      if (f.type === 'number') {
+        v = Number(v);
+        if (!Number.isFinite(v) || v < 0) throw ApiError.badRequest(`Invalid ${f.label}`);
+      } else if (f.type === 'pincode' && !RX.pincode.test(String(v))) {
+        throw ApiError.badRequest(`Invalid ${f.label}`);
+      } else if (f.type === 'select' && Array.isArray(f.options) && f.options.length && !f.options.includes(v)) {
+        throw ApiError.badRequest(`Select a valid ${f.label}`);
+      } else if (f.pattern) {
+        v = String(v).toUpperCase();
+        if (!new RegExp(f.pattern).test(v)) throw ApiError.badRequest(f.patternMsg || `Invalid ${f.label}`);
+      }
+      next[f.key] = v;
+    });
+    if (JSON.stringify(next) !== JSON.stringify(loan.productDetails || {})) {
+      loan.productDetails = next;
+      loan.markModified('productDetails');
+      changed.push(LABELS.productDetails);
     }
   }
-  loan.addHistory(loan.status, req.admin.name, 'Application details edited');
+
+  if (!changed.length) return ok(res, { loan }, 'No changes');
+  loan.addHistory(loan.status, req.admin.name, `Details updated: ${changed.join(', ')}`);
   await loan.save();
+  notify(loan.user, 'Application details updated', `Our team updated your ${changed.join(', ').toLowerCase()} for application ${loan.loanNumber}. Open the app to see the latest details.`);
   ok(res, { loan }, 'Application updated');
+});
+
+const DOC_FIELDS = { aadhaarFront: 'kyc', aadhaarBack: 'kyc', panCard: 'kyc', selfie: 'kyc', salarySlip: 'kyc', bankProof: 'bank' };
+
+exports.replaceDocuments = asyncHandler(async (req, res) => {
+  const files = req.files || {};
+  const uploaded = Object.values(files).flat();
+  try {
+    const loan = await Loan.findById(req.params.id);
+    if (!loan) throw ApiError.notFound('Loan not found');
+    if (['closed', 'cancelled'].includes(loan.status)) throw ApiError.badRequest('Closed or cancelled applications cannot be edited');
+    if (!uploaded.length) throw ApiError.badRequest('Choose at least one document');
+    const names = [];
+    Object.entries(DOC_FIELDS).forEach(([field, sec]) => {
+      const f = files[field]?.[0];
+      if (!f) return;
+      const old = loan.get(`${sec}.${field}`);
+      if (old?.filename) removeFile(PRIVATE_DIR, old.filename);
+      loan.set(`${sec}.${field}`, fileMeta(f));
+      names.push(field);
+    });
+    loan.addHistory(loan.status, req.admin.name, `Documents replaced: ${names.join(', ')}`);
+    await loan.save();
+    ok(res, { loan }, 'Documents updated');
+  } catch (e) {
+    uploaded.forEach((f) => removeFile(PRIVATE_DIR, f.filename));
+    throw e;
+  }
 });
 
 /* -------------------------------------------------------------- review stage & processing fee */

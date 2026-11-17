@@ -81,6 +81,12 @@ admin.get('/dashboard', staff, aLoan.dashboard);
 admin.get('/loans', staff, aLoan.list);
 admin.get('/loans/:id', staff, aLoan.detail);
 admin.patch('/loans/:id', managers, aLoan.editApplication);
+admin.put(
+  '/loans/:id/documents',
+  managers,
+  privateUpload.fields(['aadhaarFront', 'aadhaarBack', 'panCard', 'selfie', 'salarySlip', 'bankProof'].map((name) => ({ name, maxCount: 1 }))),
+  aLoan.replaceDocuments
+);
 admin.patch('/loans/:id/verification', staff, aLoan.updateVerification);
 admin.patch('/loans/:id/remarks', staff, aLoan.updateRemarks);
 admin.patch('/loans/:id/status', managers, aLoan.updateStatus);

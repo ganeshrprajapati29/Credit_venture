@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, BadgeCheck, Banknote, CheckCircle2, Circle, Eye, Lock, Phone, Save, XCircle } from 'lucide-react'
-import { get, send, errMsg } from '../lib/api'
+import { ArrowLeft, Ban, BadgeCheck, Banknote, CheckCircle2, Circle, Eye, Lock, Pencil, Phone, Save, Upload, XCircle } from 'lucide-react'
+import { api, get, send, errMsg } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { date, dateTime, inr, title } from '../lib/format'
 import { Badge, Button, Card, Field, Input, KV, Modal, SecureFile, Select, Spinner, Table, Textarea, Toggle, cx } from '../components/ui'
@@ -28,11 +28,16 @@ export default function LoanDetail() {
   const [products, setProducts] = useState([])
   const [gst, setGst] = useState(18)
   const [stageForm, setStageForm] = useState(null)
+  const [opts, setOpts] = useState({})
+  const [editSec, setEditSec] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [docFiles, setDocFiles] = useState({})
   useEffect(() => {
     get('/admin/settings')
       .then((d) => {
         setProducts(d.settings.loanProducts || [])
         setGst(Number(d.settings.gstPercent ?? 18))
+        setOpts(d.settings.options || {})
       })
       .catch(() => {})
   }, [])
@@ -50,10 +55,116 @@ export default function LoanDetail() {
   if (!d) return <Spinner />
   const { loan, payments, previous } = d
   const b = loan.basic || {}
-  const manager = can('superadmin', 'manager')
   const steps = loan.steps?.length ? loan.steps : ['employment']
   const productDef = products.find((p) => p.key === (loan.product || 'personal'))
   const SECTIONS = BASE_SECTIONS.filter(([k]) => (k === 'product' ? steps.includes('product') : k === 'employment' ? steps.includes('employment') : true))
+  const manager = can('superadmin', 'manager')
+  const editable = manager && !['closed', 'cancelled'].includes(loan.status)
+
+  // ---- edit applicant details (whatever is saved here is what the app shows) ----
+  const sel = (o) => (Array.isArray(o) ? o.map((x) => (typeof x === 'string' ? { v: x, l: x } : x)) : [])
+  const EDIT_DEFS = {
+    basic: [
+      ['basic', 'firstName', 'First name (as per PAN)'],
+      ['basic', 'lastName', 'Last name (as per PAN)'],
+      ['basic', 'dob', 'Date of birth', 'date'],
+      ['basic', 'gender', 'Gender', 'select', sel([{ v: 'male', l: 'Male' }, { v: 'female', l: 'Female' }, { v: 'other', l: 'Other' }])],
+      ['basic', 'email', 'Email'],
+      ['basic', 'education', 'Education', 'select', sel(opts.education)],
+      ['basic', 'maritalStatus', 'Marital status', 'select', sel(opts.maritalStatus)],
+      ['basic', 'employmentType', 'Employment type', 'select', sel(opts.employmentType)],
+      ['basic', 'monthlyIncome', 'Monthly income (₹)', 'number'],
+      ['basic', 'salaryMode', 'Salary mode', 'select', sel(opts.salaryMode)],
+      ['personal', 'fatherName', "Father's name"],
+      ['personal', 'motherName', "Mother's name"],
+      ['personal', 'residenceType', 'Residence', 'select', sel([{ v: 'owned', l: 'Owned' }, { v: 'rented', l: 'Rented' }, { v: 'family', l: 'With family' }, { v: 'pg', l: 'PG / Hostel' }])],
+      ['personal', 'purpose', 'Purpose of loan', 'select', sel(opts.loanPurpose)],
+      ['personal', 'language', 'Language', 'select', sel(opts.language)],
+    ],
+    product: (productDef?.fields || []).map((f) => ['productDetails', f.key, f.label, f.type === 'select' ? 'select' : f.type === 'number' ? 'number' : 'text', sel(f.options)]),
+    employment: [
+      ['employment', 'companyName', 'Company name'],
+      ['employment', 'sector', 'Sector', 'select', sel(opts.sector)],
+      ['employment', 'industryType', 'Industry', 'select', sel(opts.industryType)],
+      ['employment', 'natureOfWork', 'Nature of work', 'select', sel(opts.natureOfWork)],
+      ['employment', 'designation', 'Designation'],
+      ['employment', 'officeEmail', 'Office email'],
+      ['employment', 'workExperienceMonths', 'Experience (months)', 'number'],
+      ['employment', 'companyPincode', 'Company PIN'],
+      ['employment', 'companyAddress', 'Company address', 'textarea'],
+    ],
+    address: [
+      ['address', 'line1', 'House / street'],
+      ['address', 'line2', 'Area / locality'],
+      ['address', 'landmark', 'Landmark'],
+      ['address', 'city', 'City'],
+      ['address', 'state', 'State'],
+      ['address', 'pincode', 'PIN code'],
+      ['address', 'yearsAtAddress', 'Years at address', 'number'],
+      ['address', 'sameAsPermanent', 'Permanent address same as current', 'bool'],
+      ['address', 'permanentAddress', 'Permanent address', 'textarea'],
+    ],
+    kyc: [
+      ['kyc', 'aadhaarNumber', 'Aadhaar number (leave blank to keep)'],
+      ['kyc', 'panNumber', 'PAN number'],
+    ],
+    bank: [
+      ['bank', 'accountHolderName', 'Account holder'],
+      ['bank', 'accountNumber', 'Account number'],
+      ['bank', 'ifsc', 'IFSC'],
+      ['bank', 'bankName', 'Bank name'],
+      ['bank', 'branch', 'Branch'],
+      ['bank', 'accountType', 'Account type', 'select', sel([{ v: 'savings', l: 'Savings' }, { v: 'current', l: 'Current' }])],
+    ],
+  }
+  const EDIT_DOCS = {
+    kyc: [
+      ['aadhaarFront', 'Aadhaar front'],
+      ['aadhaarBack', 'Aadhaar back'],
+      ['panCard', 'PAN card'],
+      ['selfie', 'Selfie'],
+      ['salarySlip', 'Salary slip'],
+    ],
+    bank: [['bankProof', 'Bank proof (cheque / passbook / statement)']],
+  }
+  const openEdit = (k) => {
+    const f = {}
+    EDIT_DEFS[k].forEach(([grp, key, , type]) => {
+      let v = grp === 'productDetails' ? loan.productDetails?.[key] : loan[grp]?.[key]
+      if (k === 'kyc' && key === 'aadhaarNumber') v = ''
+      if (type === 'date' && v) v = String(v).slice(0, 10)
+      f[`${grp}.${key}`] = v ?? (type === 'bool' ? false : '')
+    })
+    setEditForm(f)
+    setDocFiles({})
+    setEditSec(k)
+  }
+  const saveEdit = async () => {
+    const body = {}
+    Object.entries(editForm).forEach(([path, v]) => {
+      const [grp, key] = path.split('.')
+      if (grp === 'kyc' && key === 'aadhaarNumber' && !v) return
+      body[grp] = body[grp] || {}
+      body[grp][key] = v
+    })
+    setBusy(true)
+    try {
+      const r = await send('patch', `/admin/loans/${id}`, body)
+      const files = Object.entries(docFiles).filter(([, f]) => f)
+      if (files.length) {
+        const fd = new FormData()
+        files.forEach(([k, f]) => fd.append(k, f))
+        await api.put(`/admin/loans/${id}/documents`, fd)
+      }
+      toast.success(files.length ? 'Details & documents updated' : r.message)
+      setEditSec(null)
+      load()
+    } catch (e) {
+      toast.error(errMsg(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const act = async (fn, msg) => {
     setBusy(true)
@@ -219,7 +330,7 @@ export default function LoanDetail() {
             )}
           </Card>
 
-          <Section title="Basic details" k="basic" loan={loan} onVerify={setVerify}>
+          <Section title="Basic details" k="basic" loan={loan} onVerify={setVerify} onEdit={editable ? () => openEdit('basic') : null}>
             <KV label="Full name (as per PAN)" value={`${b.firstName || ''} ${b.lastName || ''}`} />
             <KV label="Date of birth" value={date(b.dob)} />
             <KV label="Gender" value={title(b.gender)} />
@@ -239,7 +350,7 @@ export default function LoanDetail() {
           </Section>
 
           {steps.includes('product') && (
-            <Section title={productDef?.detailsTitle || 'Loan details'} k="product" loan={loan} onVerify={setVerify}>
+            <Section title={productDef?.detailsTitle || 'Loan details'} k="product" loan={loan} onVerify={setVerify} onEdit={editable && productDef?.fields?.length ? () => openEdit('product') : null}>
               {(productDef?.fields || Object.keys(loan.productDetails || {}).map((key) => ({ key, label: key }))).map((f) => {
                 const v = loan.productDetails?.[f.key]
                 return <KV key={f.key} label={f.label} value={v === undefined || v === '' ? '—' : f.type === 'number' && String(f.label).includes('₹') ? inr(v) : String(v)} />
@@ -248,7 +359,7 @@ export default function LoanDetail() {
           )}
 
           {steps.includes('employment') && (
-          <Section title="Employment" k="employment" loan={loan} onVerify={setVerify}>
+          <Section title="Employment" k="employment" loan={loan} onVerify={setVerify} onEdit={editable ? () => openEdit('employment') : null}>
             <KV label="Company" value={loan.employment?.companyName} />
             <KV label="Sector" value={loan.employment?.sector} />
             <KV label="Industry" value={loan.employment?.industryType} />
@@ -263,7 +374,7 @@ export default function LoanDetail() {
           </Section>
           )}
 
-          <Section title="Current address" k="address" loan={loan} onVerify={setVerify}>
+          <Section title="Current address" k="address" loan={loan} onVerify={setVerify} onEdit={editable ? () => openEdit('address') : null}>
             <div className="col-span-2">
               <KV label="Address" value={[loan.address?.line1, loan.address?.line2, loan.address?.landmark].filter(Boolean).join(', ')} />
             </div>
@@ -276,7 +387,7 @@ export default function LoanDetail() {
             </div>
           </Section>
 
-          <Section title="KYC documents" k="kyc" loan={loan} onVerify={setVerify}>
+          <Section title="KYC documents" k="kyc" loan={loan} onVerify={setVerify} onEdit={editable ? () => openEdit('kyc') : null}>
             <KV label="Aadhaar number" value={mask(loan.kyc?.aadhaarNumber)} mono />
             <KV label="PAN number" value={loan.kyc?.panNumber} mono />
             <div className="col-span-full grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -288,7 +399,7 @@ export default function LoanDetail() {
             </div>
           </Section>
 
-          <Section title="Bank account" k="bank" loan={loan} onVerify={setVerify}>
+          <Section title="Bank account" k="bank" loan={loan} onVerify={setVerify} onEdit={editable ? () => openEdit('bank') : null}>
             <KV label="Account holder" value={loan.bank?.accountHolderName} />
             <KV label="Account number" value={mask(loan.bank?.accountNumber)} mono />
             <KV label="IFSC" value={loan.bank?.ifsc} mono />
@@ -562,6 +673,81 @@ export default function LoanDetail() {
       </Modal>
 
       <Modal
+        open={!!editSec}
+        onClose={() => setEditSec(null)}
+        wide
+        title={`Edit ${{ basic: 'basic & personal details', product: productDef?.detailsTitle?.toLowerCase() || 'loan details', employment: 'employment', address: 'address', kyc: 'KYC', bank: 'bank account' }[editSec] || ''}`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setEditSec(null)}>
+              Cancel
+            </Button>
+            <Button icon={Save} loading={busy} onClick={saveEdit}>
+              Save changes
+            </Button>
+          </>
+        }
+      >
+        {editSec && (
+          <div className="space-y-5">
+            <p className="rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800">The customer sees these updated details in the app and gets a notification.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {EDIT_DEFS[editSec].map(([grp, key, label, type, options]) => {
+                const path = `${grp}.${key}`
+                const val = editForm[path]
+                const setVal = (v) => setEditForm({ ...editForm, [path]: v })
+                if (type === 'bool') {
+                  return (
+                    <div key={path} className="flex items-end sm:col-span-2">
+                      <Toggle checked={!!val} onChange={setVal} label={label} />
+                    </div>
+                  )
+                }
+                return (
+                  <Field key={path} label={label} className={type === 'textarea' ? 'sm:col-span-2' : ''}>
+                    {type === 'select' ? (
+                      <Select value={val ?? ''} onChange={(e) => setVal(e.target.value)}>
+                        <option value="">—</option>
+                        {(options || []).concat(val && !(options || []).some((o) => o.v === val) ? [{ v: val, l: val }] : []).map((o) => (
+                          <option key={o.v} value={o.v}>
+                            {o.l}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : type === 'textarea' ? (
+                      <Textarea value={val ?? ''} onChange={(e) => setVal(e.target.value)} />
+                    ) : (
+                      <Input type={type === 'number' ? 'number' : type === 'date' ? 'date' : 'text'} value={val ?? ''} onChange={(e) => setVal(e.target.value)} />
+                    )}
+                  </Field>
+                )
+              })}
+            </div>
+            {EDIT_DOCS[editSec] && (
+              <div>
+                <p className="mb-2 text-sm font-bold text-slate-700">Replace documents (optional)</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {EDIT_DOCS[editSec].map(([key, label]) => (
+                    <label key={key} className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 px-3 py-2.5 text-sm hover:bg-slate-50">
+                      <Upload className="size-4 text-slate-500" />
+                      <span className="flex-1 truncate">{docFiles[key]?.name || label}</span>
+                      {docFiles[key] && <span className="text-xs font-semibold text-emerald-600">Selected</span>}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,application/pdf"
+                        className="hidden"
+                        onChange={(e) => setDocFiles({ ...docFiles, [key]: e.target.files?.[0] || null })}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
         open={!!stageForm}
         onClose={() => setStageForm(null)}
         title="Update application status"
@@ -700,13 +886,20 @@ export default function LoanDetail() {
   )
 }
 
-function Section({ title: t, k, loan, onVerify, children }) {
+function Section({ title: t, k, loan, onVerify, onEdit, children }) {
   const v = loan.verification?.[k]
   return (
     <Card
       title={t}
       action={
-        <Toggle checked={!!v} onChange={(x) => onVerify(k, x)} label={v ? 'Verified' : 'Mark verified'} />
+        <div className="flex items-center gap-3">
+          {onEdit && (
+            <Button size="sm" variant="outline" icon={Pencil} onClick={onEdit}>
+              Edit
+            </Button>
+          )}
+          <Toggle checked={!!v} onChange={(x) => onVerify(k, x)} label={v ? 'Verified' : 'Mark verified'} />
+        </div>
       }
     >
       <dl className="grid grid-cols-2 gap-4 p-5 md:grid-cols-4">{children}</dl>
