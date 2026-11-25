@@ -3,6 +3,7 @@ const { connectDB } = require('./config/db');
 const app = require('./app');
 const Setting = require('./models/Setting');
 const { ensureSuperAdmin, seedBanners } = require('./scripts/seed');
+const dbStatus = require('./config/dbStatus');
 
 let dbReady = false;
 
@@ -14,7 +15,11 @@ async function connectWithRetry(attempt = 1) {
     const firstInstall = await ensureSuperAdmin();
     if (firstInstall) await seedBanners(); // default home-screen banners on a fresh install only
     dbReady = true;
+    dbStatus.status.lastError = null;
   } catch (err) {
+    dbStatus.status.attempts = attempt;
+    dbStatus.status.lastError = String(err.message || err).replace(/\/\/[^@\s]*@/g, '//***@');
+    dbStatus.status.lastErrorAt = new Date().toISOString();
     const wait = Math.min(60, 5 * attempt);
     console.error(`[db] connection failed (attempt ${attempt}): ${err.message}. Retrying in ${wait}s`);
     setTimeout(() => connectWithRetry(attempt + 1), wait * 1000).unref();

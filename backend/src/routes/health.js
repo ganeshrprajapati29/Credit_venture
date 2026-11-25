@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const pkg = require('../../package.json');
 const env = require('../config/env');
+const dbStatus = require('../config/dbStatus');
 
 const router = express.Router();
 const STATES = ['disconnected', 'connected', 'connecting', 'disconnecting'];
@@ -36,7 +37,20 @@ router.get('/', async (_req, res) => {
     time: new Date().toISOString(),
     startedAt: startedAt.toISOString(),
     uptimeSeconds: Math.round(process.uptime()),
-    database: { status: state, pingMs: dbPingMs, name: mongoose.connection.name || null },
+    database: {
+      status: state,
+      pingMs: dbPingMs,
+      name: mongoose.connection.name || null,
+      host: dbStatus.hostOf(env.mongoUri),
+      ...(dbOk
+        ? {}
+        : {
+            error: dbStatus.status.lastError,
+            errorAt: dbStatus.status.lastErrorAt,
+            attempts: dbStatus.status.attempts,
+            hint: dbStatus.hintFor(dbStatus.status.lastError || '', env.mongoUri),
+          }),
+    },
     node: process.version,
     memoryMb: { rss: Math.round(mem.rss / 1048576), heapUsed: Math.round(mem.heapUsed / 1048576) },
   });

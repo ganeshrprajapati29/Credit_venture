@@ -40,7 +40,7 @@ app.use('/api/v1/health', health);
 // Until MongoDB is connected, answer API calls with 503 instead of hanging
 app.use('/api/v1', (_req, res, next) => {
   if (mongoose.connection.readyState === 1) return next();
-  return res.status(503).json({ success: false, message: 'Service is starting, please try again in a few seconds' });
+  return res.status(503).json({ success: false, message: 'Database not connected yet. Open /api/v1/health to see the reason.' });
 });
 app.use('/api/v1', routes);
 
