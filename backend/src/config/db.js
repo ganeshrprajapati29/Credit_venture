@@ -4,7 +4,7 @@ const env = require('./env');
 mongoose.set('strictQuery', true);
 
 async function connectDB(uri = env.mongoUri) {
-  await mongoose.connect(uri, { autoIndex: true });
+  await mongoose.connect(uri, { autoIndex: true, serverSelectionTimeoutMS: 15000 });
   console.log(`[db] connected to ${mongoose.connection.host}/${mongoose.connection.name}`);
   return mongoose.connection;
 }

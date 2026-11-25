@@ -2,10 +2,10 @@
   "name": "credit-ventures-backend",
   "version": "1.0.0",
   "description": "Credit Ventures - loan platform REST API (Node.js, Express, MongoDB)",
-  "main": "src/server.js",
+  "main": "server.js",
   "private": true,
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/scripts/seed.js"
   },

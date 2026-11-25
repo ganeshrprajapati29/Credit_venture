@@ -3,7 +3,9 @@ require('dotenv').config();
 const required = (key, fallback) => {
   const v = process.env[key] ?? fallback;
   if (v === undefined || v === '') {
-    throw new Error(`Missing required environment variable: ${key}`);
+    const msg = `Missing required environment variable: ${key}. Set it in your hosting panel (Environment variables) or in backend/.env`;
+    console.error(`[config] ${msg}`);
+    throw new Error(msg);
   }
   return v;
 };

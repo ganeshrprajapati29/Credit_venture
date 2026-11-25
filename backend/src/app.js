@@ -5,7 +5,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const compression = require('compression');
 const env = require('./config/env');
+const mongoose = require('mongoose');
 const routes = require('./routes');
+const health = require('./routes/health');
 const { PUBLIC_DIR } = require('./middleware/upload');
 const { notFound, errorHandler } = require('./middleware/error');
 
@@ -29,7 +31,17 @@ if (env.nodeEnv !== 'test') app.use(morgan(env.isProd ? 'combined' : 'dev'));
 // Public assets (banners). Private KYC files are NOT served statically.
 app.use('/uploads/public', express.static(PUBLIC_DIR, { maxAge: '7d', fallthrough: false }));
 
-app.get('/', (_req, res) => res.json({ success: true, name: 'Credit Ventures API', docs: '/api/v1/health' }));
+app.get('/', (_req, res) => res.json({ success: true, name: 'Credit Ventures API', health: '/api/v1/health' }));
+
+// Health checks (work even while the database is still connecting)
+app.use('/health', health);
+app.use('/api/v1/health', health);
+
+// Until MongoDB is connected, answer API calls with 503 instead of hanging
+app.use('/api/v1', (_req, res, next) => {
+  if (mongoose.connection.readyState === 1) return next();
+  return res.status(503).json({ success: false, message: 'Service is starting, please try again in a few seconds' });
+});
 app.use('/api/v1', routes);
 
 // Optional: serve the admin build from the same server (ADMIN_DIST=/path/to/admin/dist)

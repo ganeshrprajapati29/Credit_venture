@@ -16,7 +16,6 @@ const router = express.Router();
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { success: false, message: 'Too many attempts, please try again later' } });
 
 /* ------------------------------------------------------------- public */
-router.get('/health', (_req, res) => res.json({ success: true, message: 'Credit Ventures API is running', time: new Date() }));
 router.get('/app/config', app.config);
 router.get('/app/banners', app.banners);
 
