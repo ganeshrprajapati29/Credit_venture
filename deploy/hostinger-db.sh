@@ -67,24 +67,26 @@ if ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
 fi
 docker start "$CONTAINER" >/dev/null 2>&1 || true
 
+# ADMIN_URI: from the VPS host (published port) · IN_URI: inside the container (always 27017)
 ADMIN_URI="mongodb://cvroot:${ROOT_PASS}@127.0.0.1:${DB_PORT}/?authSource=admin"
+IN_URI="mongodb://cvroot:${ROOT_PASS}@127.0.0.1:27017/?authSource=admin"
 log "Waiting for MongoDB"
 for _ in $(seq 1 60); do
-  docker exec "$CONTAINER" mongosh --quiet "$ADMIN_URI" --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1 && break
+  docker exec "$CONTAINER" mongosh --quiet "$IN_URI" --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1 && break
   sleep 2
 done
-docker exec "$CONTAINER" mongosh --quiet "$ADMIN_URI" --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1 \
+docker exec "$CONTAINER" mongosh --quiet "$IN_URI" --eval 'db.runCommand({ping:1}).ok' >/dev/null 2>&1 \
   || { docker logs --tail 30 "$CONTAINER"; die "MongoDB container did not start."; }
 
 # app user (read/write on credit_ventures only)
-docker exec "$CONTAINER" mongosh --quiet "$ADMIN_URI" --eval "
+docker exec "$CONTAINER" mongosh --quiet "$IN_URI" --eval "
 const a=db.getSiblingDB('admin');
 if(!a.getUser('cvapp')) a.createUser({user:'cvapp',pwd:'${APP_PASS}',roles:[{role:'readWrite',db:'${DB_NAME}'}]});
 else a.updateUser('cvapp',{pwd:'${APP_PASS}'});" >/dev/null
 echo "  Database user 'cvapp' ready"
 
 # ------------------------------------------------------------------ copy existing data (only if the new DB is empty)
-COUNT="$(docker exec "$CONTAINER" mongosh --quiet "$ADMIN_URI" --eval "db.getSiblingDB('${DB_NAME}').getCollectionNames().length")"
+COUNT="$(docker exec "$CONTAINER" mongosh --quiet "$IN_URI" --eval "db.getSiblingDB('${DB_NAME}').getCollectionNames().length")"
 case "$OLD_URI" in *":${DB_PORT}/"*) COUNT=1 ;; esac  # already migrated earlier
 if [ "${COUNT:-0}" = "0" ]; then
   log "Copying existing '$DB_NAME' data from the current MongoDB"
